@@ -48,7 +48,7 @@ python dataset_loader.py
 python app.py
 ```
 
-4. **Открыть в браузере**: [http://localhost:5000](http://localhost:5000)
+4. **Открыть в браузере**: [http://localhost:8080](http://localhost:8080)
 
 ## 📁 Структура проекта
 
