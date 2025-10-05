@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>620 Room Search</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo {
+            font-size: 2.5em;
+            color: #4285f4;
+            margin-bottom: 10px;
+        }
+
+        .search-container {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 15px;
+            font-size: 16px;
+            border: 2px solid #ddd;
+            border-radius: 25px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .search-box:focus {
+            border-color: #4285f4;
+        }
+
+        .search-options {
+            margin-top: 15px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .search-btn {
+            background: #4285f4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        .search-btn:hover {
+            background: #3367d6;
+        }
+
+        .results-container {
+            display: none;
+        }
+
+        .result-item {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .result-title {
+            font-size: 1.2em;
+            color: #1a0dab;
+            margin-bottom: 5px;
+            text-decoration: none;
+        }
+
+        .result-meta {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 8px;
+        }
+
+        .result-snippet {
+            color: #333;
+            line-height: 1.4;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .error {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c33;
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+
+        .query-help {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .query-help h3 {
+            margin-top: 0;
+            color: #495057;
+        }
+
+        .query-examples {
+            font-family: monospace;
+            background: #f1f3f4;
+            padding: 3px 6px;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">🔍  620 Room Search</div>
+        <p>Поиск по коллекции документов с поддержкой булевых операторов</p>
+    </div>
+
+    <div class="search-container">
+        <input type="text" id="searchInput" class="search-box" 
+               placeholder="Введите поисковый запрос..." autocomplete="off">
+
+        <div class="search-options">
+            <button onclick="performSearch()" class="search-btn">Поиск</button>
+
+            <label for="maxDistance">Макс. расстояние между словами:</label>
+            <input type="number" id="maxDistance" min="1" max="10" style="width: 60px; padding: 5px;">
+
+            <span style="margin-left: auto; font-size: 0.9em; color: #666;">
+                Нажмите Enter для поиска
+            </span>
+        </div>
+    </div>
+
+    <div class="query-help">
+        <h3>Примеры запросов:</h3>
+        <p><strong>Простой поиск:</strong> <span class="query-examples">Python</span></p>
+        <p><strong>Логическое И:</strong> <span class="query-examples">Python AND programming</span></p>
+        <p><strong>Логическое ИЛИ:</strong> <span class="query-examples">Python OR Java</span></p>
+        <p><strong>Исключение:</strong> <span class="query-examples">Python NOT web</span></p>
+        <p><strong>Поиск по полю:</strong> <span class="query-examples">category:programming</span></p>
+        <p><strong>Комбинированный:</strong> <span class="query-examples">author:John title:Python</span></p>
+    </div>
+
+    <div id="resultsContainer" class="results-container">
+        <div id="resultsHeader"></div>
+        <div id="resultsList"></div>
+    </div>
+
+    <script>
+        let searchTimeout;
+
+        document.getElementById('searchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+
+        // Мгновенный поиск при вводе (с задержкой)
+        document.getElementById('searchInput').addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(performSearch, 500);
+        });
+
+        async function performSearch() {
+            const query = document.getElementById('searchInput').value.trim();
+            const maxDistance = document.getElementById('maxDistance').value;
+
+            const resultsContainer = document.getElementById('resultsContainer');
+            const resultsHeader = document.getElementById('resultsHeader');
+            const resultsList = document.getElementById('resultsList');
+
+            if (!query) {
+                resultsContainer.style.display = 'none';
+                return;
+            }
+
+            resultsContainer.style.display = 'block';
+            resultsHeader.innerHTML = '<div class="loading">Поиск...</div>';
+            resultsList.innerHTML = '';
+
+            try {
+                const payload = { query };
+                if (maxDistance) {
+                    payload.max_distance = parseInt(maxDistance);
+                }
+
+                const response = await fetch('/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    resultsHeader.innerHTML = `<div class="error">Ошибка: ${data.error}</div>`;
+                    return;
+                }
+
+                resultsHeader.innerHTML = `
+                    <h3>Найдено результатов: ${data.total_results}</h3>
+                    <p>Запрос: "${data.query}"</p>
+                `;
+
+                if (data.results.length === 0) {
+                    resultsList.innerHTML = '<p>Документы не найдены. Попробуйте изменить запрос.</p>';
+                    return;
+                }
+
+                resultsList.innerHTML = data.results.map(result => `
+                    <div class="result-item">
+                        <div class="result-title">${result.title}</div>
+                        <div class="result-meta">
+                            Документ: ${result.id} | 
+                            Автор: ${result.author} | 
+                            Категория: ${result.category} | 
+                            Релевантность: ${result.score}
+                        </div>
+                        <div class="result-snippet">${result.snippet}</div>
+                    </div>
+                `).join('');
+
+            } catch (error) {
+                resultsHeader.innerHTML = `<div class="error">Ошибка соединения: ${error.message}</div>`;
+            }
+        }
+
+        // Загружаем статистику при загрузке страницы
+        window.addEventListener('load', async function() {
+            try {
+                const response = await fetch('/api/stats');
+                const stats = await response.json();
+
+                const statsInfo = document.createElement('div');
+                statsInfo.style.textAlign = 'center';
+                statsInfo.style.color = '#666';
+                statsInfo.style.fontSize = '0.9em';
+                statsInfo.style.marginTop = '10px';
+                statsInfo.innerHTML = `
+                    Индексировано документов: ${stats.total_documents} | 
+                    Уникальных терминов: ${stats.total_terms} | 
+                    Размер индекса: ${stats.index_size} записей
+                `;
+
+                document.querySelector('.search-container').appendChild(statsInfo);
+            } catch (error) {
+                console.log('Не удалось загрузить статистику:', error);
+            }
+        });
+    </script>
+</body>
+</html>
