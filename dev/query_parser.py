@@ -68,7 +68,7 @@ class QueryParser:
         """Токенизация запроса"""
         # Разделяем по пробелам и скобкам, сохраняя операторы
         pattern = r'(\(|\)|AND|OR|NOT|\w+|@\d+)'
-        tokens = re.findall(pattern, query.upper())
+        tokens = re.findall(pattern, query)
         return [token for token in tokens if token.strip()]
     
     def parse(self, query: str) -> ASTNode:
@@ -176,33 +176,3 @@ class QueryParser:
             return NearNode(phrase, max_near_dist)
         else:
             return TermNode(phrase[0])
-            
-
-# Тестируем парсер
-print("=== Тестирование парсера ===")
-parser = QueryParser()
-
-test_queries = [
-    "A",
-    "A B",
-    "A B @23",
-    "A AND B",
-    "A OR B",
-    "NOT A",
-    "A AND NOT B",
-    "NOT A AND NOT B",
-    "A AND B OR C",
-    "(A OR B) AND C",
-    "NOT (A OR B)",
-    "A AND NOT B OR C AND D",
-    "(A AND (B OR D)) OR C",
-    "1 2 3 AND 2",
-    "A AND A AND A AND NOT B AND C"
-]
-
-for query in test_queries:
-    try:
-        ast = parser.parse(query)
-        print(f"'{query}' -> {ast}")
-    except Exception as e:
-        print(f"'{query}' -> ERROR: {e}")
