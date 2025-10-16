@@ -237,7 +237,7 @@
 
                 resultsList.innerHTML = data.results.map(result => `
                     <div class="result-item">
-                        <div class="result-title">${result.title}</div>
+                        <a class="result-title" href="/doc/${encodeURIComponent(result.id)}">${result.title}</a>
                         <div class="result-meta">
                             Документ: ${result.id} | 
                             Автор: ${result.author} | 

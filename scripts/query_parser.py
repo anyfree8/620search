@@ -1,208 +1,74 @@
 import re
+from typing import Dict, List, Set, Tuple, Any
 
-from typing import Dict, List, Set, Tuple, Any, Union, Optional
-from itertools import chain
 
-class ASTNode():
-    """Базовый класс для узлов AST"""
-    pass
+class BooleanQueryParser:
+    """Парсер булевых запросов"""
 
-class TermNode(ASTNode):
-    """Узел для термина"""
-    def __init__(self, term: str):
-        self.term = term
-    
-    def __repr__(self):
-        return f"Term({self.term})"
-
-class NearNode(ASTNode):
-    def __init__(self, terms: List[str], max_dist: int):
-        self.terms = terms
-        self.max_dist = max_dist
-    
-    def __repr__(self):
-        return f"Near({' '.join(self.terms)}, k={self.max_dist})"
-
-class NotNode(ASTNode):
-    """Узел для операции NOT"""
-    def __init__(self, operand: ASTNode):
-        self.operand = operand
-    
-    def __repr__(self):
-        return f"NOT({self.operand})"
-
-class AndNode(ASTNode):
-    """Узел для операции AND"""
-    def __init__(self, operands: List[ASTNode]):
-        self.operands = operands
-    
-    def __repr__(self):
-        return f"AND({', '.join(str(op) for op in self.operands)})"
-    
-class AndWithPositivesAndNegativesNode(ASTNode):
-    """Узел для операции AND"""
-    def __init__(self, pos_operands: List[ASTNode], neg_operands: List[ASTNode]):
-        self.pos_operands = pos_operands
-        self.neg_operands = neg_operands
-    
-    def __repr__(self):
-        return f"AND({', '.join(str(op) for op in chain(self.pos_operands, self.neg_operands))})"
-
-class OrNode(ASTNode):
-    """Узел для операции OR"""
-    def __init__(self, operands: List[ASTNode]):
-        self.operands = operands
-    
-    def __repr__(self):
-        return f"OR({', '.join(str(op) for op in self.operands)})"
-
-class QueryParser:
-    """Парсер булевых запросов с приоритетом: NOT > AND > OR"""
-    operands = ["AND", "OR", "NOT"]
-    
     def __init__(self):
-        self.tokens = []
-        self.position = 0
-    
-    def tokenize(self, query: str) -> List[str]:
+        self.operators = ['AND', 'OR', 'NOT']
+        self.field_pattern = r'(\w+):(\w+)'
+
+    def tokenize_query(self, query: str) -> List[str]:
         """Токенизация запроса"""
-        # Разделяем по пробелам и скобкам, сохраняя операторы
-        pattern = r'(\(|\)|AND|OR|NOT|\w+|@\d+)'
-        tokens = re.findall(pattern, query.upper())
-        return [token for token in tokens if token.strip()]
-    
-    def parse(self, query: str) -> ASTNode:
-        """Основная функция парсинга"""
-        self.tokens = self.tokenize(query)
-        self.position = 0
-        
-        if not self.tokens:
-            raise ValueError("Пустой запрос")
-        
-        result = self.parse_or()
-        if self.position < len(self.tokens):
-            raise ValueError(f"Неожиданный токен: {self.tokens[self.position]}")
-        
-        return result
-    
-    def current_token(self) -> Optional[str]:
-        """Получить текущий токен"""
-        return self.tokens[self.position] if self.position < len(self.tokens) else None
+        # Обработка кавычек для фразовых запросов
+        query = query.strip()
+        tokens = []
 
-    def next_token(self) -> Optional[str]:
-        """Получить текущий токен"""
-        return self.tokens[self.position + 1] if self.position + 1 < len(self.tokens) else None
-    
-    def consume(self, expected: str = None) -> str:
-        """Потребить токен"""
-        if self.position >= len(self.tokens):
-            raise ValueError("Неожиданный конец запроса")
-        
-        token = self.tokens[self.position]
-        if expected and token != expected:
-            raise ValueError(f"Ожидался {expected}, получен {token}")
-        
-        self.position += 1
-        return token
-    
-    def parse_or(self) -> ASTNode:
-        """Парсинг OR (наименьший приоритет)"""
-        left = self.parse_and()
-        
-        operands = [left]
-        while self.current_token() == "OR":
-            self.consume("OR")
-            operands.append(self.parse_and())
-        
-        return OrNode(operands) if len(operands) > 1 else operands[0]
-    
-    def parse_and(self) -> ASTNode:
-        """Парсинг AND (средний приоритет)"""
-        left = self.parse_not()
-        
-        operands = [left]
-        while (self.current_token() and 
-               self.current_token() not in ["OR", ")"] and 
-               (self.current_token() == "AND" or 
-                self.current_token() in ["NOT", "("] or 
-                self.current_token().isalpha())):
-            
-            if self.current_token() == "AND":
-                self.consume("AND")
-            
-            operands.append(self.parse_not())
-        if len(operands) == 1:
-            return operands[0]
-        pos_operands = []
-        neg_operands = []
-        for op in operands:
-            if isinstance(op, NotNode):
-                neg_operands.append(op)
+        # Простое разбиение по пробелам с учетом операторов
+        parts = re.split(r'\s+', query)
+
+        for part in parts:
+            if part.upper() in self.operators:
+                tokens.append(part.upper())
+            elif ':' in part and re.match(self.field_pattern, part):
+                tokens.append(part.lower())
             else:
-                pos_operands.append(op)
-        if len(pos_operands) == 0 or len(neg_operands) == 0:
-            return AndNode(operands) 
-        return AndWithPositivesAndNegativesNode(pos_operands, neg_operands)
-    
-    def parse_not(self) -> ASTNode:
-        """Парсинг NOT (наивысший приоритет)"""
-        if self.current_token() == "NOT":
-            self.consume("NOT")
-            return NotNode(self.parse_primary())
-        
-        return self.parse_primary()
-    
-    def parse_primary(self) -> ASTNode:
-        """Парсинг базовых элементов (термины и скобки)"""
-        token = self.current_token()
-        
-        if token == "(":
-            self.consume("(")
-            result = self.parse_or()
-            self.consume(")")
-            return result
-        phrase = []
+                tokens.append(part.lower())
 
-        while token and self.next_token() is not None and self.next_token() not in self.operands and self.next_token() != ')':
-            phrase.append(self.consume(token))
-            token = self.current_token()
-        max_near_dist = 1
-        is_dist_token = re.match(r'^@\d+$', token)
-        if token and not is_dist_token:
-            phrase.append(self.consume(token))
-        elif is_dist_token:
-            max_near_dist = int(self.consume(token)[1:])
-        if len(phrase) > 1:
-            return NearNode(phrase, max_near_dist)
-        else:
-            return TermNode(phrase[0])
-            
+        return tokens
 
-# Тестируем парсер
-print("=== Тестирование парсера ===")
-parser = QueryParser()
+    def parse_query(self, query: str) -> Dict[str, Any]:
+        """Парсинг булева запроса в структуру"""
+        tokens = self.tokenize_query(query)
 
-test_queries = [
-    "A",
-    "A B",
-    "A B @23",
-    "A AND B",
-    "A OR B",
-    "NOT A",
-    "A AND NOT B",
-    "NOT A AND NOT B",
-    "A AND B OR C",
-    "(A OR B) AND C",
-    "NOT (A OR B)",
-    "A AND NOT B OR C AND D",
-    "(A AND (B OR D)) OR C",
-    "1 2 3 AND 2",
-    "A AND A AND A AND NOT B AND C"
-]
+        # Простая структура запроса
+        parsed_query = {
+            'type': 'boolean',
+            'must': [],      # AND условия
+            'should': [],    # OR условия  
+            'must_not': [],  # NOT условия
+            'fields': {}     # поля документа
+        }
 
-for query in test_queries:
-    try:
-        ast = parser.parse(query)
-        print(f"'{query}' -> {ast}")
-    except Exception as e:
-        print(f"'{query}' -> ERROR: {e}")
+        i = 0
+        current_operator = 'AND'  # По умолчанию
+
+        while i < len(tokens):
+            token = tokens[i]
+
+            if token in self.operators:
+                current_operator = token
+                i += 1
+                continue
+
+            # Проверка на поле документа
+            if ':' in token:
+                field_match = re.match(self.field_pattern, token)
+                if field_match:
+                    field_name, field_value = field_match.groups()
+                    parsed_query['fields'][field_name] = field_value
+                    i += 1
+                    continue
+
+            # Обычный терм
+            if current_operator == 'AND':
+                parsed_query['must'].append(token)
+            elif current_operator == 'OR':
+                parsed_query['should'].append(token)
+            elif current_operator == 'NOT':
+                parsed_query['must_not'].append(token)
+
+            i += 1
+
+        return parsed_query

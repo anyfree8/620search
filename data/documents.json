@@ -78,5 +78,125 @@
       "category": "artificial-intelligence",
       "keywords": "artificial intelligence, machine learning, deep learning, NLP"
     }
+  },
+  {
+    "id": "cybersec_1",
+    "content": "Cybersecurity focuses on protecting systems, networks, and data from digital attacks. It includes practices such as threat modeling, vulnerability management, intrusion detection, incident response, and security awareness training. Common frameworks include NIST CSF and ISO/IEC 27001.",
+    "fields": {
+      "title": "Foundations of Cybersecurity",
+      "author": "Security Analyst",
+      "category": "cybersecurity",
+      "keywords": "cybersecurity, threat modeling, vulnerability, incident response"
+    }
+  },
+  {
+    "id": "cloud_1",
+    "content": "Cloud computing delivers on-demand computing resources over the internet with pay-as-you-go pricing. Service models include IaaS, PaaS, and SaaS. Key providers are AWS, Azure, and Google Cloud, offering scalable storage, compute, networking, and managed services.",
+    "fields": {
+      "title": "Cloud Computing Essentials",
+      "author": "Cloud Architect",
+      "category": "cloud",
+      "keywords": "cloud computing, IaaS, PaaS, SaaS, AWS, Azure, GCP"
+    }
+  },
+  {
+    "id": "devops_1",
+    "content": "DevOps bridges development and operations through collaboration, automation, and continuous delivery. Core practices include CI/CD, infrastructure as code, monitoring, and blameless postmortems. Popular tools are GitHub Actions, Jenkins, Docker, and Kubernetes.",
+    "fields": {
+      "title": "DevOps Principles and Practices",
+      "author": "Site Reliability Engineer",
+      "category": "devops",
+      "keywords": "devops, CI/CD, infrastructure as code, Kubernetes, Docker"
+    }
+  },
+  {
+    "id": "mobile_1",
+    "content": "Mobile development targets iOS and Android using native SDKs or cross-platform frameworks. Native approaches use Swift/Objective-C and Kotlin/Java, while cross-platform options include React Native and Flutter for faster iteration across platforms.",
+    "fields": {
+      "title": "Mobile App Development Overview",
+      "author": "Mobile Engineer",
+      "category": "mobile-development",
+      "keywords": "iOS, Android, Swift, Kotlin, React Native, Flutter"
+    }
+  },
+  {
+    "id": "fintech_1",
+    "content": "FinTech leverages technology to innovate financial services such as payments, lending, wealth management, and insurance. Key themes include open banking APIs, digital wallets, blockchain, and regulatory compliance like KYC/AML.",
+    "fields": {
+      "title": "Financial Technology (FinTech) Landscape",
+      "author": "FinTech Strategist",
+      "category": "finance",
+      "keywords": "fintech, payments, open banking, blockchain, KYC, AML"
+    }
+  },
+  {
+    "id": "education_1",
+    "content": "EdTech applies digital tools to enhance learning outcomes through adaptive learning systems, MOOCs, collaborative platforms, and analytics. Effective implementations focus on accessibility, engagement, and evidence-based pedagogy.",
+    "fields": {
+      "title": "Educational Technology Trends",
+      "author": "Learning Scientist",
+      "category": "education",
+      "keywords": "edtech, adaptive learning, MOOCs, pedagogy, analytics"
+    }
+  },
+  {
+    "id": "environment_1",
+    "content": "Environmental sustainability addresses climate change, biodiversity loss, and resource conservation. Strategies include renewable energy adoption, circular economy practices, carbon accounting, and ESG reporting.",
+    "fields": {
+      "title": "Sustainability and the Environment",
+      "author": "Environmental Researcher",
+      "category": "environment",
+      "keywords": "sustainability, climate change, renewable energy, ESG"
+    }
+  },
+  {
+    "id": "art_1",
+    "content": "Digital art blends creativity with technology using tools like tablets, vector editors, 3D modeling, and generative techniques. NFTs introduced new models for provenance and monetization, though with debates on environmental impact.",
+    "fields": {
+      "title": "Digital Art and Creativity",
+      "author": "Digital Artist",
+      "category": "art",
+      "keywords": "digital art, 3D modeling, generative, NFTs"
+    }
+  },
+  {
+    "id": "history_1",
+    "content": "World history examines the development of civilizations, trade networks, and cultural exchanges. Key eras include classical antiquity, the medieval period, the Renaissance, and the modern industrial age.",
+    "fields": {
+      "title": "A Brief World History",
+      "author": "Historian",
+      "category": "history",
+      "keywords": "civilizations, trade, Renaissance, industrialization"
+    }
+  },
+  {
+    "id": "sports_1",
+    "content": "Sports science studies human performance, biomechanics, and training methodologies. Recovery, nutrition, and injury prevention are critical to maximizing athletic potential across disciplines from running to team sports.",
+    "fields": {
+      "title": "Introduction to Sports Science",
+      "author": "Coach",
+      "category": "sports",
+      "keywords": "biomechanics, training, recovery, injury prevention"
+    }
+  },
+  {
+    "id": "travel_1",
+    "content": "Travel planning involves budgeting, itinerary design, and understanding local customs. Sustainable travel emphasizes minimizing environmental impact and supporting local communities through responsible choices.",
+    "fields": {
+      "title": "Smart and Sustainable Travel",
+      "author": "Travel Writer",
+      "category": "travel",
+      "keywords": "itinerary, budgeting, sustainability, local culture"
+    }
+  },
+  {
+    "id": "cooking_1",
+    "content": "Culinary arts combine techniques like sautéing, roasting, and baking with flavor balancing and ingredient understanding. Trends include plant-based cooking, fermentation, and global fusion cuisines.",
+    "fields": {
+      "title": "Culinary Basics and Trends",
+      "author": "Chef",
+      "category": "cooking",
+      "keywords": "culinary, techniques, plant-based, fermentation, fusion"
+    }
   }
 ]
