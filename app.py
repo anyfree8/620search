@@ -1,5 +1,5 @@
 # Веб-интерфейс
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, abort
 import json
 import os
 
@@ -94,6 +94,25 @@ def stats():
         'total_terms': len(engine.indexer.inverted_index),
         'index_size': sum(len(docs) for docs in engine.indexer.inverted_index.values())
     })
+
+@app.route('/doc/<doc_id>')
+def document_detail(doc_id: str):
+    """Страница с деталями документа"""
+    # Проверяем наличие документа в индексе
+    doc_content = engine.indexer.documents.get(doc_id)
+    if doc_content is None:
+        abort(404)
+
+    doc_fields = engine.indexer.doc_fields.get(doc_id, {})
+
+    # Собираем все поля для отображения
+    details = {
+        'id': doc_id,
+        'content': doc_content,
+        'fields': doc_fields
+    }
+
+    return render_template('document.html', doc=details)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8080)
