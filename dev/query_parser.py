@@ -5,7 +5,6 @@ from itertools import chain
 
 class ASTNode():
     """Базовый класс для узлов AST"""
-    pass
 
 class TermNode(ASTNode):
     """Узел для термина"""

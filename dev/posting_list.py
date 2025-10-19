@@ -60,6 +60,9 @@ class PostingList(BasePostingList):
         """Cost of the posting list"""
         return len(self.doc_ids)
 
+    def __repr__(self):
+        return f"({self.doc_ids})"
+
 class AntiPostingList(BasePostingList):
     """
     Anti-posting list - represents the complement of a posting list
@@ -72,3 +75,6 @@ class AntiPostingList(BasePostingList):
     def cost(self) -> int:
         """Cost of the posting list"""
         return self.segment_size - len(self.doc_ids)
+
+    def __repr__(self):
+        return f"NOT({self.doc_ids})" 
