@@ -1,10 +1,44 @@
-import heapq
-from posting_list import BasePostingList, PostingList, AntiPostingList
 from typing import Dict, List, Set, Tuple, Any, Callable
+
+import heapq
+from dev.posting_list import BasePostingList, PostingList, AntiPostingList
+from dev.query_parser import *
 
 
 class SearchEngine:
     """Search engine with boolean queries"""
+
+    def __init__(self, indexer=None, parser=None):
+        self.indexer = indexer or DocumentIndexer() # DocumentIndexer()
+        self.parser = parser or QueryParser()       # BooleanQueryParser()
+
+    def execute(self, node: ASTNode):
+        """Execute AST"""
+        
+        if isinstance(node, TermNode):
+            doc_ids = self.indexer.get(node.term, [])
+            return PostingList(doc_ids=doc_ids)
+    
+        if isinstance(node, NotNode):
+            if isinstance(node.operand, NotNode):
+                return self.execute(node.operand.operand)
+            raise ValueError("Not is not implemented.")
+    
+        if isinstance(node, OrNode):
+            return self.execute_or([self.execute(op) for op in node.operands])
+    
+        if isinstance(node, AndNode):
+            return self.execute_and([self.execute(op) for op in node.operands])
+    
+        if isinstance(node, AndWithPositivesAndNegativesNode):
+            pos = self.execute_and([self.execute(op) for op in node.pos_operands])
+            neg = self.execute_and([self.execute(op.operand) for op in node.neg_operands])
+            return self.execute_and_not(pos, neg)
+    
+        if isinstance(node, NearNode):
+            raise ValueError("Near is not implemented yet.")
+
+        raise ValueError("Unknown AST")
     
     @staticmethod
     def execute_or(pls: List[PostingList]) -> PostingList:
