@@ -9,16 +9,16 @@ class SearchEngine:
     """Search engine with boolean queries"""
 
     def __init__(self, indexer=None, parser=None):
-        self.indexer = indexer or DocumentIndexer() # DocumentIndexer()
+        self.indexer = indexer                      # DocumentIndexer()
         self.parser = parser or QueryParser()       # BooleanQueryParser()
         # self.size = indexer segment size ?
 
-    def execute(self, node: ASTNode) -> ASTNode | BasePostingList:
+    def execute(self, node: ASTNode) -> Union[ASTNode, BasePostingList]:
         """Execute AST"""
         
         if isinstance(node, TermNode):
             doc_ids = self.indexer.get(node.term, [])
-            return PostingList(doc_ids=doc_ids)
+            return PostingList(doc_ids=doc_ids, term=node.term)
     
         if isinstance(node, NotNode):
             if isinstance(node.operand, NotNode):
@@ -37,6 +37,7 @@ class SearchEngine:
             return self.execute_and_not(pos, neg)
     
         if isinstance(node, NearNode):
+            # return self.execute_near([self.execute(TermNode(term)) for term in node.terms], k=node.k)
             raise ValueError("Near is not implemented yet.")
 
         raise ValueError("Unknown AST")
@@ -90,11 +91,8 @@ class SearchEngine:
             else:
                 PostingList(intersect_doc_ids)
 
-        
         while None not in doc_ids_q:
-
             is_all_equal = all([doc_ids_q[0] == doc_id for doc_id in doc_ids_q])
-
             if is_all_equal:
                 intersect_doc_ids.append(doc_ids_q[0])
                 {pls[j].next() for j in range(len(pls))}
@@ -137,3 +135,40 @@ class SearchEngine:
                 anti_doc_id = not_pl.advance(doc_id)
 
         return PostingList(subtract_doc_ids)
+
+    @staticmethod
+    def near_in(coord_index: Dict[int, Dict[str, List[int]]], doc_id: int, terms: List[str], k=None) -> bool:
+        """
+        NEAR: checks if all terms appear within a k-width window in doc_id.
+        """
+        k = k or len(terms) # TODO: ..
+
+        pls = [
+            PostingList(coord_index[doc_id][term])
+            # PostingList(self.indexer.get(term, doc_id)) # Not implemented
+            for term in terms
+        ]
+
+        pos_ids_q = [pls[j].peak() for j in range(len(pls))]
+
+        while None not in pos_ids_q:
+            min_pos_id = min(pos_ids_q)
+            max_pos_id = max(pos_ids_q)
+            if max_pos_id - min_pos_id + 1 <= k:
+                return True
+            idx = pos_ids_q.index(min_pos_id)
+            pls[idx].next()
+            pos_ids_q[idx] = pls[idx].peak()
+        
+        return False
+
+    def execute_near(self, pls: List[PostingList], k=None) -> PostingList:
+        """Execute NEAR operation"""
+
+        terms = [pl.term for pl in pls]
+        if None in terms:
+            raise ValueError('Non-trivial NEAR operation')
+
+        pl = self.execute_and(pls)
+        
+        return PostingList([doc_id for doc_id in pl.doc_ids if self.near_in(doc_id, terms, k=k)])
