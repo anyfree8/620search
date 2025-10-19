@@ -17,10 +17,10 @@ class TermNode(ASTNode):
 class NearNode(ASTNode):
     def __init__(self, terms: List[str], max_dist: int):
         self.terms = terms
-        self.max_dist = max_dist
+        self.k = max_dist
     
     def __repr__(self):
-        return f"Near({' '.join(self.terms)}, k={self.max_dist})"
+        return f"Near({' '.join(self.terms)}, k={self.k})"
 
 class NotNode(ASTNode):
     """Узел для операции NOT"""
@@ -165,13 +165,13 @@ class QueryParser:
         while token and self.next_token() is not None and self.next_token() not in self.operands and self.next_token() != ')':
             phrase.append(self.consume(token))
             token = self.current_token()
-        max_near_dist = 1
+        near_k = None
         is_dist_token = re.match(r'^@\d+$', token)
         if token and not is_dist_token:
             phrase.append(self.consume(token))
         elif is_dist_token:
-            max_near_dist = int(self.consume(token)[1:])
+            near_k = int(self.consume(token)[1:])
         if len(phrase) > 1:
-            return NearNode(phrase, max_near_dist)
+            return NearNode(phrase, near_k)
         else:
             return TermNode(phrase[0])

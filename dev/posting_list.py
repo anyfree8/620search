@@ -4,12 +4,18 @@ from abc import ABC, abstractmethod
 
 
 class BasePostingList(ABC):
-    """Abstract base class for posting lists"""
+    """Abstract base class for posting list"""
 
-    def __init__(self, doc_ids: List[int], segment_size: Optional[int] = None):
+    def __init__(
+            self,
+            doc_ids: List[int],
+            term: Optional[str] = None,
+            capacity: Optional[int] = None
+            ):
         self.doc_ids = doc_ids
+        self.term = term
+        self.capacity = capacity
         self.cursor = 0
-        self.segment_size = segment_size
 
     @property
     @abstractmethod
@@ -74,7 +80,7 @@ class AntiPostingList(BasePostingList):
     @property
     def cost(self) -> int:
         """Cost of the posting list"""
-        return self.segment_size - len(self.doc_ids)
+        return self.size - len(self.doc_ids)
 
     def __repr__(self):
         return f"NOT({self.doc_ids})" 
