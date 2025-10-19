@@ -11,8 +11,9 @@ class SearchEngine:
     def __init__(self, indexer=None, parser=None):
         self.indexer = indexer or DocumentIndexer() # DocumentIndexer()
         self.parser = parser or QueryParser()       # BooleanQueryParser()
+        # self.size = indexer segment size ?
 
-    def execute(self, node: ASTNode):
+    def execute(self, node: ASTNode) -> ASTNode | BasePostingList:
         """Execute AST"""
         
         if isinstance(node, TermNode):
