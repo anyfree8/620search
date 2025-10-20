@@ -64,7 +64,7 @@ def create_positional_index(
     positional_index = defaultdict(lambda: defaultdict(list))
     
     for doc_id, doc in enumerate(documents):            
-        text = doc.get('text', '')
+        text = doc.get('text', '').lower()
 
         for position, word in enumerate(tokenizer.tokenize(text)):
             if word not in string.punctuation:

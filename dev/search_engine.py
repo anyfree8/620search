@@ -1,6 +1,8 @@
 from typing import Dict, List, Set, Tuple, Any, Callable
 
 import heapq
+import dev.index
+
 from dev.posting_list import BasePostingList, PostingList, AntiPostingList
 from dev.query_parser import *
 
@@ -9,7 +11,8 @@ class SearchEngine:
     """Search engine with boolean queries"""
 
     def __init__(self, indexer=None, parser=None):
-        self.indexer = indexer                      # DocumentIndexer()
+        self.rev_indexer = dev.index.ReverseIndex('data/wikipedia_delta_index.pb')  # DocumentIndexer()
+        self.pos_indexer = dev.index.CoordinateIndex('data/wikipedia_pos_index.pb')
         self.parser = parser or QueryParser()       # BooleanQueryParser()
         # self.size = indexer segment size ?
 
@@ -17,7 +20,7 @@ class SearchEngine:
         """Execute AST"""
         
         if isinstance(node, TermNode):
-            doc_ids = self.indexer.get(node.term, [])
+            doc_ids = self.rev_indexer.get(node.term)
             return PostingList(doc_ids=doc_ids, term=node.term)
     
         if isinstance(node, NotNode):
@@ -136,16 +139,15 @@ class SearchEngine:
 
         return PostingList(subtract_doc_ids)
 
-    @staticmethod
-    def near_in(coord_index: Dict[int, Dict[str, List[int]]], doc_id: int, terms: List[str], k=None) -> bool:
+    def near_in(self, doc_id: int, terms: List[str], k=None) -> bool:
         """
         NEAR: checks if all terms appear within a k-width window in doc_id.
         """
         k = k or len(terms) # TODO: ..
 
         pls = [
-            PostingList(coord_index[doc_id][term])
-            # PostingList(self.indexer.get(term, doc_id)) # Not implemented
+            #PostingList(coord_index[doc_id][term])
+            PostingList(self.pos_indexer.get(doc_id, term)) # Not implemented
             for term in terms
         ]
 

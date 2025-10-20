@@ -13,6 +13,7 @@ class ReverseIndex:
     def __init__(self, file_path = ''):
         self.index = data.wikipedia_dataset_pb2.InvertedIndex()
         self.file_path = file_path
+        self.load_index()
 
     def get(self, term):
         for posting_list in self.index.postings:
@@ -31,6 +32,7 @@ class CoordinateIndex:
     def __init__(self, file_path = ''):
         self.index = data.wikipedia_dataset_pb2.PositionalIndex()
         self.file_path = file_path
+        self.load_index()
 
     def get(self, doc_id, term):
         pos_ids = []
