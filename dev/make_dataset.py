@@ -55,7 +55,11 @@ def create_inverted_index_with_delta(documents, output_file: str):
     with open(output_file, 'wb') as f:
         f.write(index.SerializeToString())
 
-def build_positional_index(documents):
+def create_positional_index(
+    documents,
+    output_file: str
+):
+    index = data.wikipedia_dataset_pb2.PositionalIndex()
     tokenizer = WordPunctTokenizer()
     positional_index = defaultdict(lambda: defaultdict(list))
     
@@ -65,14 +69,6 @@ def build_positional_index(documents):
         for position, word in enumerate(tokenizer.tokenize(text)):
             if word not in string.punctuation:
                 positional_index[word][doc_id].append(position)
-    
-    return positional_index
-
-def save_positional_index_to_protobuf(
-    positional_index: Dict,
-    output_file: str
-):
-    index = data.wikipedia_dataset_pb2.PositionalIndex()
     
     total_docs = 0
     total_terms = 0
@@ -89,7 +85,7 @@ def save_positional_index_to_protobuf(
             posting.doc_id = doc_id
             posting.frequency = len(positions)
             if positions:
-                posting.first_position = positions
+                posting.first_position = positions[0]
                 position_deltas = [
                     positions[i] - positions[i-1] 
                     for i in range(1, len(positions))
@@ -116,7 +112,11 @@ def save_dataset():
 
 def make_dataset():
     dataset = datasets.load_from_disk("data/wikipedia_ru_100k")
-    docs = list(dataset)
     save_documents_to_protobuf(dataset, 'data/documents')
     create_inverted_index_with_delta(dataset, 'data/wikipedia_delta_index.pb')
+
+def make_pos_idx():
+    dataset = datasets.load_from_disk("data/wikipedia_ru_100k")
+    create_positional_index(dataset, 'data/wikipedia_pos_index.pb')
+    
 
