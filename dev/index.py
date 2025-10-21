@@ -16,6 +16,7 @@ class ReverseIndex:
         self.load_index()
 
     def get(self, term):
+        doc_ids = []
         for posting_list in self.index.postings:
             if posting_list.term == term:
                 doc_ids = delta_decode(

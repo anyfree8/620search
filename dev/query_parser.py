@@ -68,7 +68,13 @@ class QueryParser:
         # Разделяем по пробелам и скобкам, сохраняя операторы
         pattern = r'(\(|\)|AND|OR|NOT|\w+|@\d+)'
         tokens = re.findall(pattern, query)
-        return [token for token in tokens if token.strip()]
+
+        def normalize(token):
+            if token not in ('AND', 'OR' ,'NOT'):
+                return token.lower()
+            return token
+
+        return [normalize(token) for token in tokens if token.strip()]
     
     def parse(self, query: str) -> ASTNode:
         """Основная функция парсинга"""
