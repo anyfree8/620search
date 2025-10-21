@@ -118,5 +118,3 @@ def make_dataset():
 def make_pos_idx():
     dataset = datasets.load_from_disk("data/wikipedia_ru_100k")
     create_positional_index(dataset, 'data/wikipedia_pos_index.pb')
-    
-

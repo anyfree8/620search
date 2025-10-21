@@ -1,20 +1,37 @@
 from typing import Dict, List, Set, Tuple, Any, Callable
 
 import heapq
-import dev.index
 
+from dev.index import ReverseIndex, CoordinateIndex
 from dev.posting_list import BasePostingList, PostingList, AntiPostingList
 from dev.query_parser import *
 
 
 class SearchEngine:
     """Search engine with boolean queries"""
+    rev_indexer: ReverseIndex
+    pos_indexer: CoordinateIndex
+    parser: QueryParser
+    documents: List[Dict[str, Any]]
 
-    def __init__(self, indexer=None, parser=None):
-        self.rev_indexer = dev.index.ReverseIndex('data/wikipedia_delta_index.pb')  # DocumentIndexer()
-        self.pos_indexer = dev.index.CoordinateIndex('data/wikipedia_pos_index.pb')
-        self.parser = parser or QueryParser()       # BooleanQueryParser()
-        # self.size = indexer segment size ?
+    def __init__(
+        self,
+        reverse_index_path='data/wikipedia_delta_index.pb',
+        pos_index_path='data/wikipedia_pos_index.pb',
+        parser=None,
+    ):
+        self.rev_indexer = ReverseIndex(reverse_index_path)
+        self.pos_indexer = CoordinateIndex(pos_index_path) if pos_index_path else None
+        self.parser = parser or QueryParser()
+        self.documents = None
+
+    def search(self, query: str, max_distance: int = None) -> List[Tuple[str, float]]:
+        """Search by boolean query"""
+        
+        ast = self.parser.parse(query)
+        results = [(str(doc_id), 0.0) for doc_id in self.execute(ast).doc_ids]
+        
+        return results
 
     def execute(self, node: ASTNode) -> Union[ASTNode, BasePostingList]:
         """Execute AST"""
@@ -40,8 +57,9 @@ class SearchEngine:
             return self.execute_and_not(pos, neg)
     
         if isinstance(node, NearNode):
-            # return self.execute_near([self.execute(TermNode(term)) for term in node.terms], k=node.k)
-            raise ValueError("Near is not implemented yet.")
+            if self.pos_indexer is None:
+                raise ValueError("Near is not supplied yet.")
+            return self.execute_near([self.execute(TermNode(term)) for term in node.terms], k=node.k)
 
         raise ValueError("Unknown AST")
     
@@ -143,11 +161,10 @@ class SearchEngine:
         """
         NEAR: checks if all terms appear within a k-width window in doc_id.
         """
-        k = k or len(terms) # TODO: ..
+        k = k or len(terms) # TODO: ?
 
         pls = [
-            #PostingList(coord_index[doc_id][term])
-            PostingList(self.pos_indexer.get(doc_id, term)) # Not implemented
+            PostingList(self.pos_indexer.get(doc_id, term))
             for term in terms
         ]
 
