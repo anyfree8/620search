@@ -24,33 +24,45 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1c\x64\x61ta/wikipedia_dataset.proto\"@\n\x08\x44ocument\x12\n\n\x02id\x18\x01 \x01(\t\x12\r\n\x05title\x18\x02 \x01(\t\x12\x0c\n\x04text\x18\x03 \x01(\t\x12\x0b\n\x03url\x18\x04 \x01(\t\"2\n\x12\x44ocumentCollection\x12\x1c\n\tdocuments\x18\x01 \x03(\x0b\x32\t.Document\"7\n\x0f\x44\x65ltaEncodedIds\x12\x10\n\x08\x66irst_id\x18\x01 \x01(\x05\x12\x12\n\x06\x64\x65ltas\x18\x02 \x03(\x05\x42\x02\x10\x01\"W\n\x0bPostingList\x12\x0c\n\x04term\x18\x01 \x01(\t\x12!\n\x07\x64oc_ids\x18\x02 \x01(\x0b\x32\x10.DeltaEncodedIds\x12\x17\n\x0b\x66requencies\x18\x03 \x03(\x05\x42\x02\x10\x01\"/\n\rInvertedIndex\x12\x1e\n\x08postings\x18\x01 \x03(\x0b\x32\x0c.PostingList\"k\n\x11PositionalPosting\x12\x0e\n\x06\x64oc_id\x18\x01 \x01(\x05\x12\x11\n\tfrequency\x18\x02 \x01(\x05\x12\x16\n\x0e\x66irst_position\x18\x03 \x01(\x05\x12\x1b\n\x0fposition_deltas\x18\x04 \x03(\x05\x42\x02\x10\x01\"K\n\x15PositionalPostingList\x12\x0c\n\x04term\x18\x01 \x01(\t\x12$\n\x08postings\x18\x02 \x03(\x0b\x32\x12.PositionalPosting\"i\n\x0fPositionalIndex\x12(\n\x08postings\x18\x01 \x03(\x0b\x32\x16.PositionalPostingList\x12\x17\n\x0ftotal_documents\x18\x02 \x01(\x05\x12\x13\n\x0btotal_terms\x18\x03 \x01(\x05\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1c\x64\x61ta/wikipedia_dataset.proto\"@\n\x08\x44ocument\x12\n\n\x02id\x18\x01 \x01(\x05\x12\r\n\x05title\x18\x02 \x01(\t\x12\x0c\n\x04text\x18\x03 \x01(\t\x12\x0b\n\x03url\x18\x04 \x01(\t\"\x8e\x01\n\x12\x44ocumentCollection\x12\x39\n\x0bid2document\x18\x01 \x03(\x0b\x32$.DocumentCollection.Id2documentEntry\x1a=\n\x10Id2documentEntry\x12\x0b\n\x03key\x18\x01 \x01(\x05\x12\x18\n\x05value\x18\x02 \x01(\x0b\x32\t.Document:\x02\x38\x01\"3\n\x0bPostingList\x12\x10\n\x08\x66irst_id\x18\x01 \x01(\x05\x12\x12\n\x06\x64\x65ltas\x18\x02 \x03(\x05\x42\x02\x10\x01\"\x96\x01\n\rInvertedIndex\x12>\n\x10term2postingList\x18\x01 \x03(\x0b\x32$.InvertedIndex.Term2postingListEntry\x1a\x45\n\x15Term2postingListEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\x1b\n\x05value\x18\x02 \x01(\x0b\x32\x0c.PostingList:\x02\x38\x01\"L\n\x15PositionalPostingList\x12\x16\n\x0e\x66irst_position\x18\x01 \x01(\x05\x12\x1b\n\x0fposition_deltas\x18\x02 \x03(\x05\x42\x02\x10\x01\"\xae\x01\n\x11PositionalPosting\x12\x46\n\x12term2positionsList\x18\x01 \x03(\x0b\x32*.PositionalPosting.Term2positionsListEntry\x1aQ\n\x17Term2positionsListEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12%\n\x05value\x18\x02 \x01(\x0b\x32\x16.PositionalPostingList:\x02\x38\x01\"\xb8\x01\n\x0fPositionalIndex\x12P\n\x18\x64ocId2termPositionsLists\x18\x01 \x03(\x0b\x32..PositionalIndex.DocId2termPositionsListsEntry\x1aS\n\x1d\x44ocId2termPositionsListsEntry\x12\x0b\n\x03key\x18\x01 \x01(\x05\x12!\n\x05value\x18\x02 \x01(\x0b\x32\x12.PositionalPosting:\x02\x38\x01\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'data.wikipedia_dataset_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   DESCRIPTOR._loaded_options = None
-  _globals['_DELTAENCODEDIDS'].fields_by_name['deltas']._loaded_options = None
-  _globals['_DELTAENCODEDIDS'].fields_by_name['deltas']._serialized_options = b'\020\001'
-  _globals['_POSTINGLIST'].fields_by_name['frequencies']._loaded_options = None
-  _globals['_POSTINGLIST'].fields_by_name['frequencies']._serialized_options = b'\020\001'
-  _globals['_POSITIONALPOSTING'].fields_by_name['position_deltas']._loaded_options = None
-  _globals['_POSITIONALPOSTING'].fields_by_name['position_deltas']._serialized_options = b'\020\001'
+  _globals['_DOCUMENTCOLLECTION_ID2DOCUMENTENTRY']._loaded_options = None
+  _globals['_DOCUMENTCOLLECTION_ID2DOCUMENTENTRY']._serialized_options = b'8\001'
+  _globals['_POSTINGLIST'].fields_by_name['deltas']._loaded_options = None
+  _globals['_POSTINGLIST'].fields_by_name['deltas']._serialized_options = b'\020\001'
+  _globals['_INVERTEDINDEX_TERM2POSTINGLISTENTRY']._loaded_options = None
+  _globals['_INVERTEDINDEX_TERM2POSTINGLISTENTRY']._serialized_options = b'8\001'
+  _globals['_POSITIONALPOSTINGLIST'].fields_by_name['position_deltas']._loaded_options = None
+  _globals['_POSITIONALPOSTINGLIST'].fields_by_name['position_deltas']._serialized_options = b'\020\001'
+  _globals['_POSITIONALPOSTING_TERM2POSITIONSLISTENTRY']._loaded_options = None
+  _globals['_POSITIONALPOSTING_TERM2POSITIONSLISTENTRY']._serialized_options = b'8\001'
+  _globals['_POSITIONALINDEX_DOCID2TERMPOSITIONSLISTSENTRY']._loaded_options = None
+  _globals['_POSITIONALINDEX_DOCID2TERMPOSITIONSLISTSENTRY']._serialized_options = b'8\001'
   _globals['_DOCUMENT']._serialized_start=32
   _globals['_DOCUMENT']._serialized_end=96
-  _globals['_DOCUMENTCOLLECTION']._serialized_start=98
-  _globals['_DOCUMENTCOLLECTION']._serialized_end=148
-  _globals['_DELTAENCODEDIDS']._serialized_start=150
-  _globals['_DELTAENCODEDIDS']._serialized_end=205
-  _globals['_POSTINGLIST']._serialized_start=207
+  _globals['_DOCUMENTCOLLECTION']._serialized_start=99
+  _globals['_DOCUMENTCOLLECTION']._serialized_end=241
+  _globals['_DOCUMENTCOLLECTION_ID2DOCUMENTENTRY']._serialized_start=180
+  _globals['_DOCUMENTCOLLECTION_ID2DOCUMENTENTRY']._serialized_end=241
+  _globals['_POSTINGLIST']._serialized_start=243
   _globals['_POSTINGLIST']._serialized_end=294
-  _globals['_INVERTEDINDEX']._serialized_start=296
-  _globals['_INVERTEDINDEX']._serialized_end=343
-  _globals['_POSITIONALPOSTING']._serialized_start=345
-  _globals['_POSITIONALPOSTING']._serialized_end=452
-  _globals['_POSITIONALPOSTINGLIST']._serialized_start=454
-  _globals['_POSITIONALPOSTINGLIST']._serialized_end=529
-  _globals['_POSITIONALINDEX']._serialized_start=531
-  _globals['_POSITIONALINDEX']._serialized_end=636
+  _globals['_INVERTEDINDEX']._serialized_start=297
+  _globals['_INVERTEDINDEX']._serialized_end=447
+  _globals['_INVERTEDINDEX_TERM2POSTINGLISTENTRY']._serialized_start=378
+  _globals['_INVERTEDINDEX_TERM2POSTINGLISTENTRY']._serialized_end=447
+  _globals['_POSITIONALPOSTINGLIST']._serialized_start=449
+  _globals['_POSITIONALPOSTINGLIST']._serialized_end=525
+  _globals['_POSITIONALPOSTING']._serialized_start=528
+  _globals['_POSITIONALPOSTING']._serialized_end=702
+  _globals['_POSITIONALPOSTING_TERM2POSITIONSLISTENTRY']._serialized_start=621
+  _globals['_POSITIONALPOSTING_TERM2POSITIONSLISTENTRY']._serialized_end=702
+  _globals['_POSITIONALINDEX']._serialized_start=705
+  _globals['_POSITIONALINDEX']._serialized_end=889
+  _globals['_POSITIONALINDEX_DOCID2TERMPOSITIONSLISTSENTRY']._serialized_start=806
+  _globals['_POSITIONALINDEX_DOCID2TERMPOSITIONSLISTSENTRY']._serialized_end=889
 # @@protoc_insertion_point(module_scope)

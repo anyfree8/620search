@@ -16,12 +16,14 @@ class SearchEngine:
 
     def __init__(
         self,
-        reverse_index_path='data/wikipedia_delta_index.pb',
-        pos_index_path='data/wikipedia_pos_index.pb',
+        reverse_index_paths={'text_file_path': 'data/wikipedia_100_delta_index_text.pb',
+                             'title_file_path': 'data/wikipedia_100_delta_index_title.pb'},
+        pos_index_paths={'text_file_path': 'data/wikipedia_100_pos_index_text.pb',
+                             'title_file_path': 'data/wikipedia_100_pos_index_title.pb'},
         parser=None,
     ):
-        self.rev_indexer = ReverseIndex(reverse_index_path)
-        self.pos_indexer = CoordinateIndex(pos_index_path) if pos_index_path else None
+        self.rev_indexer = ReverseIndex(**reverse_index_paths)
+        self.pos_indexer = CoordinateIndex(**pos_index_paths) if pos_index_paths else None
         self.parser = parser or QueryParser()
         self.documents = None
 

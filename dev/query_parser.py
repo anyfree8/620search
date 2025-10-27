@@ -8,8 +8,9 @@ class ASTNode():
 
 class TermNode(ASTNode):
     """Узел для термина"""
-    def __init__(self, term: str):
+    def __init__(self, term: str, field: str):
         self.term = term
+        self.field = field
     
     def __repr__(self):
         return f"Term({self.term})"

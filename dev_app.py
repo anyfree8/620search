@@ -5,7 +5,7 @@ from data.data_loader import load_documents
 
 
 engine = SearchEngine()
-load_documents(engine=engine, file='data/documents')
+load_documents(engine=engine, file='data/documents_100')
 
 app = Flask(__name__)
 
@@ -31,8 +31,8 @@ def search():
             # Форматируем результаты
             formatted_results = []
             for doc_id, score in results[:10]:  # Топ-10 результатов
-                doc_content = engine.documents[int(doc_id)].get('content', '')
-                doc_fields = engine.documents[int(doc_id)].get('fields', {})
+                doc_content = engine.documents.get(int(doc_id)).get('text', '')
+                doc_fields = engine.documents.get(int(doc_id))
 
                 formatted_results.append({
                     'id': doc_id,
@@ -88,8 +88,8 @@ def stats():
 @app.route('/doc/<doc_id>')
 def document_detail(doc_id: str):
     """Страница с деталями документа"""
-    doc_content = engine.documents[int(doc_id)].get('content', '')
-    doc_fields = engine.documents[int(doc_id)].get('fields', {})
+    doc_content = engine.documents.get(int(doc_id)).get('text', '')
+    doc_fields = engine.documents.get(int(doc_id)).get('fields', {})
 
     details = {
         'id': doc_id,
