@@ -1,55 +1,75 @@
 import data.wikipedia_dataset_pb2
 
 def delta_decode(first, deltas):
-    if not deltas:
-        return [first] if first else []
-    
     result = [first]
     for delta in deltas:
         result.append(result[-1] + delta)
     return result
 
 class ReverseIndex:
-    def __init__(self, file_path = 'data/wikipedia_delta_index.pb'):
-        self.index = data.wikipedia_dataset_pb2.InvertedIndex()
-        self.file_path = file_path
-        self.load_index()
+    def __init__(self, text_file_path = 'data/wikipedia_delta_index.pb', title_file_path = 'data/wikipedia_delta_index.pb'):
+        self.text_index = data.wikipedia_dataset_pb2.InvertedIndex()
+        self.title_index = data.wikipedia_dataset_pb2.InvertedIndex()
+        self.text_file_path = text_file_path
+        self.title_file_path = title_file_path
+        self.load_indexes()
 
-    def get(self, term):
+    def get(self, term, field=None):
+        if field == 'text':
+            return self.getByIndex(term, self.text_index)
+        elif field == 'title':
+            return self.getByIndex(term, self.title_index)
+        else:
+            return sorted(self.getByIndex(term, self.text_index) + self.getByIndex(term, self.title_index))
+
+    def getByIndex(self, term, index):
         doc_ids = []
-        for posting_list in self.index.postings:
-            if posting_list.term == term:
-                doc_ids = delta_decode(
-                    posting_list.doc_ids.first_id,
-                    list(posting_list.doc_ids.deltas)
-                )
+        posting_list = index.term2postingList.get(term, None)
+        if posting_list is not None:
+            doc_ids = delta_decode(
+                posting_list.first_id,
+                list(posting_list.deltas)
+            )
         return doc_ids
     
-    def load_index(self):
-        with open(self.file_path, 'rb') as f:
-            self.index.ParseFromString(f.read())
+    def load_indexes(self):
+        with open(self.text_file_path, 'rb') as f:
+            self.text_index.ParseFromString(f.read())
+        with open(self.title_file_path, 'rb') as f:
+            self.title_index.ParseFromString(f.read())
 
 class CoordinateIndex:
-    def __init__(self, file_path = 'data/wikipedia_pos_index.pb'):
-        self.index = data.wikipedia_dataset_pb2.PositionalIndex()
-        self.file_path = file_path
+    def __init__(self, text_file_path = 'data/wikipedia_delta_index.pb', title_file_path = 'data/wikipedia_delta_index.pb'):
+        self.text_index = data.wikipedia_dataset_pb2.PositionalIndex()
+        self.title_index = data.wikipedia_dataset_pb2.PositionalIndex()
+        self.text_file_path = text_file_path
+        self.title_file_path = title_file_path
         self.load_index()
 
-    def get(self, doc_id, term):
+    def get(self, doc_id, term, field='text'):
+        if field == 'text':
+            return self.getByIndex(doc_id, term, self.text_index)
+        return self.getByIndex(doc_id, term, self.title_index)
+
+    def getByIndex(self, doc_id, term, index):
         pos_ids = []
-        for posting_list in self.index.postings:
-            if posting_list.term == term:
-                for positional_posting_lists in posting_list.postings:
-                    if positional_posting_lists.doc_id == doc_id:
-                        pos_ids = delta_decode(
-                            positional_posting_lists.first_position,
-                            list(positional_posting_lists.position_deltas)
-                        )
+        term_positions_lists = index.docId2termPositionsLists.get(doc_id, None)
+        if term_positions_lists is None:
+            return pos_ids
+        positions_list = term_positions_lists.term2positionsList.get(term, None)
+        if positions_list is None:
+            return pos_ids
+        pos_ids = delta_decode(
+            positions_list.first_position,
+            list(positions_list.position_deltas)
+        )
         return pos_ids
     
     def load_index(self):
-        with open(self.file_path, 'rb') as f:
-            self.index.ParseFromString(f.read())
+        with open(self.text_file_path, 'rb') as f:
+            self.text_index.ParseFromString(f.read())
+        with open(self.title_file_path, 'rb') as f:
+            self.title_index.ParseFromString(f.read())
 
 class DataIndex:
     def __init__(self, file_path = 'data/documents'):
@@ -58,16 +78,18 @@ class DataIndex:
         self.load_index()
 
     def get(self, doc_id):
-        for document in self.index.documents:
-            doc_ids.append(document.id)
-            if int(document.id) == doc_id:
-                return {
-                    "doc_id": document.id,
-                    "text": document.text,
-                    "title": document.title,
-                    "url": document.url
-                }
-        return None
+        document = self.index.id2document.get(doc_id, None)
+        if document is not None: 
+            return {
+                "doc_id": document.id,
+                "text": document.text,
+                "title": document.title,
+                "url": document.url
+            }
+        return document
+
+    def __len__(self):
+        return len(self.index.id2document)
             
     def load_index(self):
         with open(self.file_path, 'rb') as f:
