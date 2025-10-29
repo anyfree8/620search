@@ -5,191 +5,497 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>620 Room Search</title>
     <style>
+        :root {
+            --bg: #f5f7fb;
+            --card: #ffffff;
+            --text: #111827;
+            --muted: #6b7280;
+            --primary: #2563eb;
+            --primary-600: #1d4ed8;
+            --ring: rgba(37, 99, 235, 0.35);
+            --border: #e5e7eb;
+            --chip: #eef2ff;
+        }
+
+        [data-theme="dark"] {
+            --bg: #0b1220;
+            --card: #0f172a;
+            --text: #e5e7eb;
+            --muted: #9ca3af;
+            --primary: #60a5fa;
+            --primary-600: #3b82f6;
+            --ring: rgba(96, 165, 250, 0.35);
+            --border: #1f2937;
+            --chip: #111827;
+        }
+
+        html, body {
+            height: 100%;
+        }
+
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            max-width: 1200px;
+            margin: 0;
+            background-color: var(--bg);
+            color: var(--text);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        .container {
+            max-width: 1100px;
             margin: 0 auto;
-            padding: 20px;
-            background-color: #f5f5f5;
+            padding: 24px 20px 40px 20px;
+        }
+
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            backdrop-filter: saturate(180%) blur(8px);
+            background-color: color-mix(in srgb, var(--bg) 75%, transparent);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .topbar-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 10px 20px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            letter-spacing: 0.2px;
+        }
+
+        .brand .logo {
+            font-size: 22px;
+        }
+
+        .brand .title {
+            font-size: 16px;
+            color: var(--muted);
+        }
+
+        .actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .icon-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: border-color .2s, background-color .2s;
+        }
+
+        .icon-btn:hover {
+            border-color: var(--primary);
+            background: color-mix(in srgb, var(--primary) 8%, transparent);
         }
 
         .header {
             text-align: center;
-            margin-bottom: 40px;
+            margin: 26px 0 18px 0;
         }
 
         .logo {
-            font-size: 2.5em;
-            color: #4285f4;
-            margin-bottom: 10px;
+            font-size: 2.0em;
+            color: var(--primary);
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: var(--muted);
+            font-size: 0.95em;
         }
 
         .search-container {
-            background: white;
-            border-radius: 8px;
-            padding: 30px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 30px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: 0 1px 0 rgba(0,0,0,0.02);
+            margin-bottom: 18px;
+        }
+
+        .search-row {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .search-input-wrap {
+            position: relative;
         }
 
         .search-box {
             width: 100%;
-            padding: 15px;
+            padding: 14px 44px 14px 44px;
             font-size: 16px;
-            border: 2px solid #ddd;
-            border-radius: 25px;
+            border: 1.5px solid var(--border);
+            border-radius: 12px;
             outline: none;
-            transition: border-color 0.3s;
+            background: transparent;
+            color: var(--text);
+            transition: border-color 0.2s, box-shadow 0.2s;
         }
 
         .search-box:focus {
-            border-color: #4285f4;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px var(--ring);
         }
 
-        .search-options {
-            margin-top: 15px;
-            display: flex;
-            gap: 20px;
-            align-items: center;
+        .input-icon {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 16px;
+            color: var(--muted);
+            pointer-events: none;
         }
 
-        .search-btn {
-            background: #4285f4;
-            color: white;
+        .clear-btn {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: transparent;
             border: none;
-            padding: 12px 24px;
-            border-radius: 6px;
+            color: var(--muted);
             cursor: pointer;
-            font-size: 14px;
-            transition: background-color 0.3s;
-        }
-
-        .search-btn:hover {
-            background: #3367d6;
-        }
-
-        .results-container {
+            padding: 6px;
             display: none;
         }
 
+        .search-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s, transform 0.02s;
+        }
+
+        .search-btn:hover { background: var(--primary-600); }
+        .search-btn:active { transform: translateY(1px); }
+
+        .search-options {
+            margin-top: 12px;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            flex-wrap: wrap;
+            color: var(--muted);
+        }
+
+        .number-input {
+            width: 70px;
+            padding: 8px 10px;
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            background: transparent;
+            color: var(--text);
+        }
+
+        .chips {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .chip {
+            background: var(--chip);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 6px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .results-container { display: none; }
+
+        .results-header {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin: 14px 0;
+            color: var(--muted);
+        }
+
         .result-item {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 15px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
         }
 
         .result-title {
-            font-size: 1.2em;
-            color: #1a0dab;
-            margin-bottom: 5px;
+            font-size: 18px;
+            color: #1d4ed8;
+            margin-bottom: 6px;
             text-decoration: none;
         }
 
-        .result-meta {
-            font-size: 0.9em;
-            color: #666;
-            margin-bottom: 8px;
+        [data-theme="dark"] .result-title { color: #93c5fd; }
+
+        .badges { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+        .badge {
+            border: 1px solid var(--border);
+            color: var(--muted);
+            border-radius: 999px;
+            padding: 3px 8px;
+            font-size: 12px;
         }
 
-        .result-snippet {
-            color: #333;
-            line-height: 1.4;
-        }
+        .result-snippet { line-height: 1.5; color: var(--text); }
 
-        .loading {
-            text-align: center;
-            padding: 20px;
-            color: #666;
-        }
+        .loading { text-align: center; padding: 18px; color: var(--muted); }
 
         .error {
-            background: #fee;
-            border: 1px solid #fcc;
-            color: #c33;
-            padding: 15px;
-            border-radius: 6px;
-            margin-bottom: 15px;
+            background: color-mix(in srgb, #ef4444 6%, transparent);
+            border: 1px solid color-mix(in srgb, #ef4444 22%, transparent);
+            color: #b91c1c;
+            padding: 14px;
+            border-radius: 10px;
+            margin-bottom: 12px;
         }
 
         .query-help {
-            background: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 6px;
-            padding: 20px;
-            margin-bottom: 20px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            margin-bottom: 14px;
+            overflow: hidden;
+        }
+
+        .query-help-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.2s;
+        }
+
+        .query-help-header:hover {
+            background: color-mix(in srgb, var(--primary) 5%, transparent);
         }
 
         .query-help h3 {
-            margin-top: 0;
-            color: #495057;
+            margin: 0;
+            color: var(--muted);
+            font-weight: 600;
+            font-size: 0.95em;
+        }
+
+        .query-help-toggle {
+            font-size: 18px;
+            color: var(--muted);
+            transition: transform 0.3s;
+            line-height: 1;
+        }
+
+        .query-help[data-collapsed="true"] .query-help-toggle {
+            transform: rotate(-90deg);
+        }
+
+        .query-help-content {
+            padding: 0 16px 16px 16px;
+            max-height: 500px;
+            opacity: 1;
+            transition: max-height 0.3s ease-out, opacity 0.2s, padding 0.3s;
+            overflow: hidden;
+        }
+
+        .query-help[data-collapsed="true"] .query-help-content {
+            max-height: 0;
+            opacity: 0;
+            padding: 0 16px;
         }
 
         .query-examples {
-            font-family: monospace;
-            background: #f1f3f4;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            background: color-mix(in srgb, var(--primary) 5%, transparent);
+            border: 1px dashed var(--border);
             padding: 3px 6px;
-            border-radius: 3px;
+            border-radius: 6px;
             font-size: 0.9em;
         }
+
+        .footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 18px; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="logo">🔍  620 Room Search</div>
-        <p>Поиск по коллекции документов с поддержкой булевых операторов</p>
-    </div>
-
-    <div class="search-container">
-        <input type="text" id="searchInput" class="search-box" 
-               placeholder="Введите поисковый запрос..." autocomplete="off">
-
-        <div class="search-options">
-            <button onclick="performSearch()" class="search-btn">Поиск</button>
-
-            <label for="maxDistance">Макс. расстояние между словами:</label>
-            <input type="number" id="maxDistance" min="1" max="10" style="width: 60px; padding: 5px;">
-
-            <span style="margin-left: auto; font-size: 0.9em; color: #666;">
-                Нажмите Enter для поиска
-            </span>
+    <div class="topbar">
+        <div class="topbar-inner">
+            <div class="brand">
+                <div class="logo">🔎</div>
+                <div class="title">620 Room Search</div>
+            </div>
+            <div class="actions">
+                <button id="themeToggle" class="icon-btn" title="Переключить тему">🌓</button>
+                <a class="icon-btn" href="https://github.com" target="_blank" rel="noreferrer" title="Проект">↗︎</a>
+            </div>
         </div>
     </div>
 
-    <div class="query-help">
-        <h3>Примеры запросов:</h3>
-        <p><strong>Простой поиск:</strong> <span class="query-examples">Python</span></p>
-        <p><strong>Логическое И:</strong> <span class="query-examples">Python AND programming</span></p>
-        <p><strong>Логическое ИЛИ:</strong> <span class="query-examples">Python OR Java</span></p>
-        <p><strong>Исключение:</strong> <span class="query-examples">Python NOT web</span></p>
-        <p><strong>Поиск по полю:</strong> <span class="query-examples">category:programming</span></p>
-        <p><strong>Комбинированный:</strong> <span class="query-examples">author:John title:Python</span></p>
-    </div>
+    <div class="container">
+        <div class="header">
+            <p class="subtitle">Поиск по коллекции документов с поддержкой булевых операторов</p>
+        </div>
 
-    <div id="resultsContainer" class="results-container">
-        <div id="resultsHeader"></div>
-        <div id="resultsList"></div>
+        <div class="search-container" role="search" aria-label="Поиск по документам">
+            <div class="search-row">
+                <div class="search-input-wrap">
+                    <span class="input-icon">⌕</span>
+                    <input type="text" id="searchInput" class="search-box" 
+                           placeholder="Введите запрос. Нажмите Enter для поиска" autocomplete="off"
+                           aria-label="Строка поиска">
+                    <button id="clearBtn" class="clear-btn" aria-label="Очистить" title="Очистить">✕</button>
+                </div>
+                <button id="searchBtn" class="search-btn">Поиск</button>
+            </div>
+
+            <!--
+            <div class="search-options">
+                <span>Поддерживается NEAR: например <span class="query-examples">title::Партия труда @2</span></span>
+                <span style="margin-left: auto;">Подсказка: нажмите '/' чтобы перейти к строке поиска</span>
+            </div>
+            -->
+
+            <div class="chips" aria-label="Примеры запросов">
+                <span class="chip" data-q="Литва">Литва</span>
+                <span class="chip" data-q="Литва AND Россия">Литва AND Россия</span>
+                <span class="chip" data-q="Литва AND NOT Россия">Литва AND NOT Россия</span>
+                <span class="chip" data-q="Литва OR Варшава">Литва OR Варшава</span>
+                <span class="chip" data-q="Литва NOT Варшава">Литва NOT Варшава</span>
+                <span class="chip" data-q="title::Партия труда @2">title::Партия труда @2</span>
+                <span class="chip" data-q="title::Литва AND частично признанное государство">title::Литва AND частично признанное государство</span>
+            </div>
+        </div>
+
+        <div class="query-help" id="queryHelp" data-collapsed="false">
+            <div class="query-help-header" onclick="toggleQueryHelp()">
+                <h3>Синтаксис запросов</h3>
+                <span class="query-help-toggle">▼</span>
+            </div>
+            <div class="query-help-content">
+                <p><strong>Простой поиск:</strong> <span class="query-examples">term</span></p>
+                <p><strong>Булевы операторы:</strong> <span class="query-examples">term1 AND term2 AND NOT term3</span>, <span class="query-examples">term1 OR term2</span>, <span class="query-examples">term1 NOT term2</span></p>
+                <p><strong>Поиск по полю:</strong> <span class="query-examples">field::term</span> </p>
+                <p><strong>NEAR (k):</strong> <span class="query-examples">term1 term2 @k</span> <br>
+                <small>По умолчанию k = количеству термов в фразе.</small></p>
+                <!-- <p><strong>Комбинации:</strong> <span class="query-examples">author:John title:Python</span></p> -->
+            </div>
+        </div>
+
+        <div id="resultsContainer" class="results-container" aria-live="polite">
+            <div id="resultsHeader" class="results-header"></div>
+            <div id="resultsList"></div>
+        </div>
+
+        <div class="footer">⌘/Ctrl + Enter — выполнить поиск • Esc — очистить</div>
     </div>
 
     <script>
         let searchTimeout;
+        const $ = (id) => document.getElementById(id);
+        const searchInput = $('searchInput');
+        const clearBtn = $('clearBtn');
+        const searchBtn = $('searchBtn');
+        const themeToggle = $('themeToggle');
 
-        document.getElementById('searchInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                performSearch();
+        // Тема
+        (function initTheme(){
+            const saved = localStorage.getItem('theme');
+            if (saved === 'dark' || (!saved && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.setAttribute('data-theme', 'dark');
             }
+        })();
+
+        themeToggle.addEventListener('click', () => {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
+            localStorage.setItem('theme', isDark ? 'light' : 'dark');
         });
 
-        // Мгновенный поиск при вводе (с задержкой)
-        document.getElementById('searchInput').addEventListener('input', function() {
+        // Аккордеон справки
+        function toggleQueryHelp() {
+            const help = $('queryHelp');
+            const isCollapsed = help.getAttribute('data-collapsed') === 'true';
+            help.setAttribute('data-collapsed', !isCollapsed);
+            localStorage.setItem('queryHelpCollapsed', !isCollapsed ? 'true' : 'false');
+        }
+
+        // Восстанавливаем состояние аккордеона из localStorage
+        (function initQueryHelp() {
+            const saved = localStorage.getItem('queryHelpCollapsed');
+            if (saved === 'true') {
+                $('queryHelp').setAttribute('data-collapsed', 'true');
+            }
+        })();
+
+        // Быстрые примеры
+        document.querySelectorAll('.chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                searchInput.value = chip.getAttribute('data-q') || '';
+                performSearch();
+                searchInput.focus();
+            });
+        });
+
+        // Клавиатура: Enter, Cmd/Ctrl+Enter, '/', Esc
+        document.addEventListener('keydown', (e) => {
+            if (e.key === '/' && document.activeElement !== searchInput) {
+                e.preventDefault(); searchInput.focus();
+            }
+            if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { performSearch(); }
+            if (e.key === 'Escape') { searchInput.value = ''; toggleClear(); renderEmpty(); }
+        });
+
+        searchInput.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') { performSearch(); }
+        });
+
+        searchInput.addEventListener('input', () => {
+            toggleClear();
             clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(performSearch, 500);
+            searchTimeout = setTimeout(() => performSearch(true), 400);
         });
 
-        async function performSearch() {
+        searchBtn.addEventListener('click', performSearch);
+        clearBtn.addEventListener('click', () => { searchInput.value = ''; toggleClear(); renderEmpty(); searchInput.focus(); });
+
+        function toggleClear(){ clearBtn.style.display = searchInput.value.trim() ? 'block' : 'none'; }
+
+        function renderEmpty(){
+            const resultsContainer = $('resultsContainer');
+            resultsContainer.style.display = 'none';
+        }
+
+        async function performSearch(isTyping = false) {
             const query = document.getElementById('searchInput').value.trim();
-            const maxDistance = document.getElementById('maxDistance').value;
+            const maxDistance = undefined; // deprecated UI
 
             const resultsContainer = document.getElementById('resultsContainer');
             const resultsHeader = document.getElementById('resultsHeader');
@@ -201,14 +507,15 @@
             }
 
             resultsContainer.style.display = 'block';
-            resultsHeader.innerHTML = '<div class="loading">Поиск...</div>';
+            if (!isTyping) {
+                resultsHeader.innerHTML = '<div class="loading">Поиск...</div>';
+            }
             resultsList.innerHTML = '';
 
             try {
+                const started = performance.now();
                 const payload = { query };
-                if (maxDistance) {
-                    payload.max_distance = parseInt(maxDistance);
-                }
+                // max_distance deprecated; use NEAR syntax in query
 
                 const response = await fetch('/search', {
                     method: 'POST',
@@ -225,9 +532,10 @@
                     return;
                 }
 
+                const elapsedMs = Math.max(1, Math.round(performance.now() - started));
                 resultsHeader.innerHTML = `
-                    <h3>Найдено результатов: ${data.total_results}</h3>
-                    <p>Запрос: "${data.query}"</p>
+                    <div>Найдено: <strong>${data.total_results}</strong></div>
+                    <div style="font-size:12px; color: var(--muted);">${elapsedMs} мс • "${data.query}"</div>
                 `;
 
                 if (data.results.length === 0) {
@@ -237,12 +545,14 @@
 
                 resultsList.innerHTML = data.results.map(result => `
                     <div class="result-item">
-                        <a class="result-title" href="/doc/${encodeURIComponent(result.id)}">${result.title}</a>
-                        <div class="result-meta">
-                            Документ: ${result.id} | 
-                            Автор: ${result.author} | 
-                            Категория: ${result.category} | 
-                            Релевантность: ${result.score}
+                        <div style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;">
+                            <a class="result-title" href="/doc/${encodeURIComponent(result.id)}">${result.title || 'Без названия'}</a>
+                            ${result.url ? `<a href="${result.url}" target="_blank" rel="noreferrer" style="font-size: 12px; color: var(--muted); text-decoration: none;">🔗</a>` : ''}
+                        </div>
+                        <div class="badges">
+                            <span class="badge">id: ${result.id}</span>
+                            <span class="badge">score: ${result.score}</span>
+                            ${result.url ? `<span class="badge"><a href="${result.url}" target="_blank" rel="noreferrer" style="color: inherit; text-decoration: none;">🔗 url</a></span>` : ''}
                         </div>
                         <div class="result-snippet">${result.snippet}</div>
                     </div>
@@ -261,12 +571,12 @@
 
                 const statsInfo = document.createElement('div');
                 statsInfo.style.textAlign = 'center';
-                statsInfo.style.color = '#666';
+                statsInfo.style.color = 'var(--muted)';
                 statsInfo.style.fontSize = '0.9em';
                 statsInfo.style.marginTop = '10px';
                 statsInfo.innerHTML = `
                     Индексировано документов: ${stats.total_documents} | 
-                    Уникальных терминов: ${stats.total_terms} | 
+                    Уникальных термов: ${stats.total_terms} | 
                     Размер индекса: ${stats.index_size} записей
                 `;
 

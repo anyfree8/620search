@@ -7,6 +7,16 @@ from dev.posting_list import BasePostingList, PostingList, AntiPostingList
 from dev.query_parser import *
 
 
+REVERSE_INDEX_CONFIG_PATH = {
+    'text_file_path': 'data/wikipedia_100k_delta_index_text.pb',
+    'title_file_path': 'data/wikipedia_100k_delta_index_title.pb'
+}
+
+POS_INDEX_CONFIG_PATH = {
+    'text_file_path': 'data/wikipedia_100k_pos_index_text.pb',
+    'title_file_path': 'data/wikipedia_100k_pos_index_title.pb'
+}
+
 class SearchEngine:
     """Search engine with boolean queries"""
     rev_indexer: ReverseIndex
@@ -16,10 +26,8 @@ class SearchEngine:
 
     def __init__(
         self,
-        reverse_index_paths={'text_file_path': 'data/wikipedia_100k_delta_index_text.pb',
-                             'title_file_path': 'data/wikipedia_100k_delta_index_title.pb'},
-        pos_index_paths={'text_file_path': 'data/wikipedia_100k_pos_index_text.pb',
-                             'title_file_path': 'data/wikipedia_100k_pos_index_title.pb'},
+        reverse_index_paths=REVERSE_INDEX_CONFIG_PATH,
+        pos_index_paths=POS_INDEX_CONFIG_PATH,
         parser=None,
     ):
         self.rev_indexer = ReverseIndex(**reverse_index_paths)
