@@ -16,14 +16,14 @@ class SearchEngine:
 
     def __init__(
         self,
-        reverse_index_paths={'text_file_path': 'data/wikipedia_100_delta_index_text.pb',
-                             'title_file_path': 'data/wikipedia_100_delta_index_title.pb'},
-        pos_index_paths={'text_file_path': 'data/wikipedia_100_pos_index_text.pb',
-                             'title_file_path': 'data/wikipedia_100_pos_index_title.pb'},
+        reverse_index_paths={'text_file_path': 'data/wikipedia_100k_delta_index_text.pb',
+                             'title_file_path': 'data/wikipedia_100k_delta_index_title.pb'},
+        pos_index_paths={'text_file_path': 'data/wikipedia_100k_pos_index_text.pb',
+                             'title_file_path': 'data/wikipedia_100k_pos_index_title.pb'},
         parser=None,
     ):
         self.rev_indexer = ReverseIndex(**reverse_index_paths)
-        self.pos_indexer = CoordinateIndex(**pos_index_paths) if pos_index_paths else None
+        self.pos_indexer = CoordinateIndex(**pos_index_paths)
         self.parser = parser or QueryParser()
         self.documents = None
 
@@ -39,7 +39,7 @@ class SearchEngine:
         """Execute AST"""
         
         if isinstance(node, TermNode):
-            doc_ids = self.rev_indexer.get(node.term)
+            doc_ids = self.rev_indexer.get(node.term, field=node.field)
             return PostingList(doc_ids=doc_ids, term=node.term)
     
         if isinstance(node, NotNode):
@@ -61,7 +61,7 @@ class SearchEngine:
         if isinstance(node, NearNode):
             if self.pos_indexer is None:
                 raise ValueError("Near is not supplied yet.")
-            return self.execute_near([self.execute(TermNode(term)) for term in node.terms], k=node.k)
+            return self.execute_near([self.execute(term) for term in node.terms], k=node.k, field=node.terms[0].field)
 
         raise ValueError("Unknown AST")
     
@@ -159,14 +159,14 @@ class SearchEngine:
 
         return PostingList(subtract_doc_ids)
 
-    def near_in(self, doc_id: int, terms: List[str], k=None) -> bool:
+    def near_in(self, doc_id: int, terms: List[str], k=None, field='text') -> bool:
         """
         NEAR: checks if all terms appear within a k-width window in doc_id.
         """
         k = k or len(terms) # TODO: ?
 
         pls = [
-            PostingList(self.pos_indexer.get(doc_id, term))
+            PostingList(self.pos_indexer.get(doc_id, term, field=field))
             for term in terms
         ]
 
@@ -183,7 +183,7 @@ class SearchEngine:
         
         return False
 
-    def execute_near(self, pls: List[PostingList], k=None) -> PostingList:
+    def execute_near(self, pls: List[PostingList], k=None, field='text') -> PostingList:
         """Execute NEAR operation"""
 
         terms = [pl.term for pl in pls]
@@ -192,4 +192,4 @@ class SearchEngine:
 
         pl = self.execute_and(pls)
         
-        return PostingList([doc_id for doc_id in pl.doc_ids if self.near_in(doc_id, terms, k=k)])
+        return PostingList([doc_id for doc_id in pl.doc_ids if self.near_in(doc_id, terms, k=k, field=field)])

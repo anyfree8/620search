@@ -5,7 +5,7 @@ from data.data_loader import load_documents
 
 
 engine = SearchEngine()
-load_documents(engine=engine, file='data/documents_100')
+load_documents(engine=engine, file='data/documents_100k')
 
 app = Flask(__name__)
 
