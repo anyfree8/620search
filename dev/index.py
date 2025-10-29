@@ -14,6 +14,36 @@ class ReverseIndex:
         self.title_file_path = title_file_path
         self.load_indexes()
 
+    # ---- Stats helpers / properties ----
+    @staticmethod
+    def _posting_list_length(pl):
+        """Number of documents in posting list encoded with first_id + deltas."""
+        return 1 + len(pl.deltas)
+
+    @property
+    def text_terms(self):
+        return set(self.text_index.term2postingList.keys())
+
+    @property
+    def title_terms(self):
+        return set(self.title_index.term2postingList.keys())
+
+    @property
+    def total_terms(self):
+        return len(self.text_terms | self.title_terms)
+
+    @property
+    def index_size_text(self):
+        return sum(self._posting_list_length(pl) for pl in self.text_index.term2postingList.values())
+
+    @property
+    def index_size_title(self):
+        return sum(self._posting_list_length(pl) for pl in self.title_index.term2postingList.values())
+
+    @property
+    def index_size(self):
+        return self.index_size_text + self.index_size_title
+
     def get(self, term, field=None):
         if field == 'text':
             return self.getByIndex(term, self.text_index)
@@ -45,6 +75,12 @@ class CoordinateIndex:
         self.text_file_path = text_file_path
         self.title_file_path = title_file_path
         self.load_index()
+
+    # Optional positional stats (can be used later if needed)
+    @staticmethod
+    def _positions_list_length(positions_list):
+        # length of positions list = 1 + len(position_deltas)
+        return 1 + len(positions_list.position_deltas)
 
     def get(self, doc_id, term, field='text'):
         if field == 'text':
@@ -90,6 +126,10 @@ class DataIndex:
 
     def __len__(self):
         return len(self.index.id2document)
+
+    @property
+    def total_documents(self):
+        return len(self)
             
     def load_index(self):
         with open(self.file_path, 'rb') as f:

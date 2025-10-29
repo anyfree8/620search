@@ -4,27 +4,25 @@ from typing import Dict, List, Set, Tuple, Any, Union, Optional
 from itertools import chain
 
 class ASTNode():
-    """Базовый класс для узлов AST"""
+    pass
 
 class TermNode(ASTNode):
-    """Узел для термина"""
     def __init__(self, term: str, field: str):
         self.term = term
         self.field = field
     
     def __repr__(self):
-        return f"Term({self.term})"
+        return f"Term({self.field}:{self.term})"
 
 class NearNode(ASTNode):
-    def __init__(self, terms: List[str], max_dist: int):
+    def __init__(self, terms: List[TermNode], max_dist: int):
         self.terms = terms
         self.k = max_dist
     
     def __repr__(self):
-        return f"Near({' '.join(self.terms)}, k={self.k})"
+        return f"Near({' '.join([str(term) for term in self.terms])}, k={self.k})"
 
 class NotNode(ASTNode):
-    """Узел для операции NOT"""
     def __init__(self, operand: ASTNode):
         self.operand = operand
     
@@ -32,7 +30,6 @@ class NotNode(ASTNode):
         return f"NOT({self.operand})"
 
 class AndNode(ASTNode):
-    """Узел для операции AND"""
     def __init__(self, operands: List[ASTNode]):
         self.operands = operands
     
@@ -40,7 +37,6 @@ class AndNode(ASTNode):
         return f"AND({', '.join(str(op) for op in self.operands)})"
     
 class AndWithPositivesAndNegativesNode(ASTNode):
-    """Узел для операции AND"""
     def __init__(self, pos_operands: List[ASTNode], neg_operands: List[ASTNode]):
         self.pos_operands = pos_operands
         self.neg_operands = neg_operands
@@ -49,7 +45,6 @@ class AndWithPositivesAndNegativesNode(ASTNode):
         return f"AND({', '.join(str(op) for op in chain(self.pos_operands, self.neg_operands))})"
 
 class OrNode(ASTNode):
-    """Узел для операции OR"""
     def __init__(self, operands: List[ASTNode]):
         self.operands = operands
     
@@ -67,18 +62,16 @@ class QueryParser:
     def tokenize(self, query: str) -> List[str]:
         """Токенизация запроса"""
         # Разделяем по пробелам и скобкам, сохраняя операторы
-        pattern = r'(\(|\)|AND|OR|NOT|\w+|@\d+)'
+        pattern = r'(\(|\)|AND|OR|NOT|\w+\:\:\w+|\w+|@\d+)'
         tokens = re.findall(pattern, query)
 
         def normalize(token):
             if token not in ('AND', 'OR' ,'NOT'):
                 return token.lower()
             return token
-
         return [normalize(token) for token in tokens if token.strip()]
     
     def parse(self, query: str) -> ASTNode:
-        """Основная функция парсинга"""
         self.tokens = self.tokenize(query)
         self.position = 0
         
@@ -92,15 +85,12 @@ class QueryParser:
         return result
     
     def current_token(self) -> Optional[str]:
-        """Получить текущий токен"""
         return self.tokens[self.position] if self.position < len(self.tokens) else None
 
     def next_token(self) -> Optional[str]:
-        """Получить текущий токен"""
         return self.tokens[self.position + 1] if self.position + 1 < len(self.tokens) else None
     
     def consume(self, expected: str = None) -> str:
-        """Потребить токен"""
         if self.position >= len(self.tokens):
             raise ValueError("Неожиданный конец запроса")
         
@@ -112,7 +102,6 @@ class QueryParser:
         return token
     
     def parse_or(self) -> ASTNode:
-        """Парсинг OR (наименьший приоритет)"""
         left = self.parse_and()
         
         operands = [left]
@@ -123,7 +112,6 @@ class QueryParser:
         return OrNode(operands) if len(operands) > 1 else operands[0]
     
     def parse_and(self) -> ASTNode:
-        """Парсинг AND (средний приоритет)"""
         left = self.parse_not()
         
         operands = [left]
@@ -169,16 +157,31 @@ class QueryParser:
             return result
         phrase = []
 
+        field = 'text'
+        if token and self.next_token() is not None and self.next_token() not in self.operands and self.next_token() != ')' and token.find('::') != -1:
+            tok = self.consume(token)
+            field = tok[:tok.find('::')]
+            tok = tok[tok.find('::') + 2:]
+            phrase.append(tok)
+            token = self.current_token()
+
         while token and self.next_token() is not None and self.next_token() not in self.operands and self.next_token() != ')':
             phrase.append(self.consume(token))
             token = self.current_token()
         near_k = None
         is_dist_token = re.match(r'^@\d+$', token)
-        if token and not is_dist_token:
+        if token and not is_dist_token and token.find('::') == -1:
             phrase.append(self.consume(token))
         elif is_dist_token:
             near_k = int(self.consume(token)[1:])
+        elif token.find('::') != -1:
+            tok = self.consume(token)
+            field = tok[:tok.find('::')]
+            tok = tok[tok.find('::') + 2:]
+            phrase.append(tok)
+
         if len(phrase) > 1:
-            return NearNode(phrase, near_k)
+            terms = [TermNode(term, field) for term in phrase]
+            return NearNode(terms, near_k)
         else:
-            return TermNode(phrase[0])
+            return TermNode(phrase[0], field)
