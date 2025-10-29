@@ -4,6 +4,7 @@ stg/
 data/
 example.ipynb
 scripts/
+dev/test/
 .DS_Store
 .venv/
 .env
