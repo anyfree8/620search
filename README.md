@@ -1,34 +1,33 @@
-# 🔍 Поисковый движок с булевыми запросами
+# 🔎 six-twenty-search
 
-Полнофункциональный поисковый движок на Python с поддержкой обратного и координатного индексов, булевых запросов и веб-интерфейсом.
+Минимальный поисковый движок на Python с булевой логикой и оператором NEAR. Веб-интерфейс на Flask, данные читаются из protobuf-индексов Wikipedia (обратный и позиционный индексы).
 
 ## ✨ Основные возможности
 
-### 🏗️ Архитектура поисковой системы
-- **Обратный индекс** (Inverted Index) - для быстрого поиска документов по терминам
-- **Координатный индекс** (Positional Index) - для поиска с ограничением расстояния между словами
-- **TF-IDF ранжирование** - для сортировки результатов по релевантности
-- **Поддержка полей документа** - поиск по метаданным (автор, категория, заголовок)
+### 🏗️ Архитектура
+- `dev/index.py`
+  - `ReverseIndex` — обратный индекс из protobuf; свойства: `total_terms`, `index_size`
+  - `CoordinateIndex` — позиционный индекс из protobuf
+  - `DataIndex` — коллекция документов: `get(doc_id) -> {doc_id, title, text, url}`, `total_documents`
+- `dev/search_engine.py` — парсинг и исполнение булевых/NEAR запросов поверх индексов
+- `templates/` — обновлённые интерфейсы (`index.html`, `document.html`) с тёмной темой
+- `app.py` — основной Flask-приложение
 
-### 🔎 Типы запросов
-- **Простой поиск**: `Python`
-- **Логическое И**: `Python AND programming`
-- **Логическое ИЛИ**: `Python OR Java`
-- **Исключение**: `Python NOT web`
-- **Поиск по полю**: `category:technology`, `author:Smith`
-- **Комбинированный**: `author:Expert title:Machine category:technology`
-- **С ограничением расстояния**: `Python programming` (максимальное расстояние между словами)
+### 🔎 Синтаксис запросов
+- Простой: `term`
+- Булевы: `term1 AND term2`, `term1 OR term2`, `term1 AND NOT term3`
+- Поля: `title::литва`, `text::москва`
+- NEAR (окно k): `term1 term2 @k` (пример: `title::Партия труда @2`)
 
 ### 🌐 Веб-интерфейс
-- Современный responsive дизайн
-- Мгновенный поиск при вводе
-- Подсветка результатов с метаданными
-- API для интеграции с другими системами
+- Современный UI с тёмной/светлой темой (переключатель 🌓)
+- Аккордеон «Синтаксис запросов», быстрые чипы-примеры
+- Результаты: `title`, `url`, `snippet`, `score`
 
 ## 📦 Установка и запуск
 
 ### Требования
-- Python 3.7+
+- Python 3.9+
 - Flask
 
 ### Быстрый старт
@@ -38,30 +37,32 @@
 pip install -r requirements.txt
 ```
 
-2. **Создание коллекции документов** (опционально):
-```bash
-python dataset_loader.py
-```
-
-3. **Запуск поискового сервиса**:
+2. **Запуск поискового сервиса**:
 ```bash
 python app.py
 ```
 
 4. **Открыть в браузере**: [http://localhost:8080](http://localhost:8080)
 
-## 📁 Структура проекта
+## 🗂️ Структура
 
 ```
-search-engine/
-├── app.py                    # Основное Flask приложение
-├── dataset_loader.py         # Загрузчик коллекций документов
-├── templates/
-│   └── index.html           # Веб-интерфейс
+.
+├── app.py
+├── dev/
+│   ├── index.py
+│   ├── search_engine.py
+│   ├── query_parser.py
+│   └── posting_list.py
 ├── data/
-│   └── documents.json       # Коллекция документов
-├── requirements.txt         # Python зависимости
-└── README.md               # Документация
+│   ├── documents_100k
+│   ├── wikipedia_100k_* (protobuf индексы)
+│   └── wikipedia_dataset_pb2.py
+├── templates/
+│   ├── index.html
+│   └── document.html
+├── requirements.txt
+└── README.md
 ```
 
 ## 🏛️ Архитектура системы
@@ -108,29 +109,23 @@ search-engine/
 }
 ```
 
-## 🚀 Использование
-
-### Примеры API запросов
+## 🚀 HTTP API
 
 ```python
 # POST /search
-{
-  "query": "machine learning AND category:technology",
-  "max_distance": 5  # опционально
-}
+{ "query": "title::литва AND москва" }
 
 # Ответ
 {
-  "query": "machine learning AND category:technology",
+  "query": "title::литва AND москва",
   "total_results": 2,
   "results": [
     {
-      "id": "doc1",
-      "title": "Introduction to Machine Learning",
-      "author": "Tech Expert", 
-      "category": "technology",
-      "score": 2.847,
-      "snippet": "Machine learning algorithms..."
+      "id": "123",
+      "title": "Литва — статья",
+      "url": "https://...",
+      "score": 0.0,
+      "snippet": "Начало текста..."
     }
   ]
 }
@@ -145,34 +140,14 @@ search-engine/
   "content": "Content of the document...",
   "fields": {
     "title": "Document Title",
-    "author": "Author Name",
-    "category": "category_name"
+    "url": "https://..."
   }
 }
 ```
 
-## 📊 Коллекции документов
+## 📊 Данные
 
-### Встроенная коллекция
-Система поставляется с коллекцией из 8 документов по темам:
-- Технологии и программирование
-- Машинное обучение и ИИ
-- Веб-разработка
-- Наука о данных
-- Бизнес и цифровая трансформация
-- Здравоохранение
-
-### Расширение коллекции
-```python
-# Использование dataset_loader.py для создания больших коллекций
-from dataset_loader import DatasetLoader
-
-loader = DatasetLoader()
-loader.load_sample_documents()         # Встроенные образцы
-loader.load_gutenberg_sample()         # Project Gutenberg (требует интернет)
-loader.download_simple_wikipedia_sample(50)  # Wikipedia (требует интернет)
-loader.save_documents("my_collection.json")
-```
+По умолчанию используются готовые protobuf-индексы и коллекция в `data/`. Большие файлы уже исключены из git.
 
 ## 🔧 Конфигурация и настройка
 
@@ -203,44 +178,19 @@ print(f'Найдено {len(results)} результатов')"
 - Поиск: <10мс для простых запросов
 - Память: ~50MB для коллекции в 10,000 документов
 
-## 📈 Метрики и мониторинг
+## 📈 Статистика
 
-### API статистики
-```bash
-GET /api/stats
-{
-  "total_documents": 8,
-  "total_terms": 247,
-  "index_size": 1891
-}
-```
+`GET /api/stats` → `{ total_documents, total_terms, index_size }`
 
-## 🤝 Расширение проекта
+## 🤝 Заметки по развитию
 
-### Домашние задания
-Этот проект может быть расширен для выполнения дополнительных заданий:
+- Поддержка опечаток, wildcard, фраз — в планах
+- Разделение статистики по полям (text/title) — легко добавить
 
-1. **Поиск с опечатками**: реализация алгоритма Левенштейна
-2. **Джокерные запросы**: поддержка wildcard символов
-3. **Ранжирование**: улучшенные алгоритмы (BM25, PageRank)
-4. **Масштабирование**: поддержка больших коллекций
-5. **Персонализация**: учет истории поисков пользователя
+## 📚 Ссылки
 
-### Интеграция с внешними системами
-- Elasticsearch для больших объемов данных
-- Redis для кеширования результатов
-- PostgreSQL для хранения метаданных
-
-## 📚 Ресурсы для изучения
-
-- [Information Retrieval: Introduction](https://nlp.stanford.edu/IR-book/)
-- [Lucene in Action](https://www.manning.com/books/lucene-in-action-second-edition)
-- [Modern Search Engines](https://www.cambridge.org/core/books/introduction-to-information-retrieval)
+- IR Book: https://nlp.stanford.edu/IR-book/
 
 ## 📄 Лицензия
 
-MIT License - свободное использование в учебных и коммерческих целях.
-
----
-
-**Создано для выполнения домашнего задания по разработке библиотеки индексации текстовых документов.**
+MIT

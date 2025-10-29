@@ -1,23 +1,13 @@
-# Веб-интерфейс
 from flask import Flask, render_template, request, jsonify, abort
-import json
-import os
 
-from typing import Dict, List, Set, Tuple, Any
+from dev.search_engine import SearchEngine
+from data.data_loader import load_documents
 
-from scripts.index import DocumentIndexer
-from scripts.query_parser import BooleanQueryParser
-from scripts.search_engine import SearchEngine
-from data.data_loader import load_documents_from_json
 
-# Инициализируем поисковый движок и загружаем тестовые данные
 engine = SearchEngine()
-load_documents_from_json(engine=engine, json_file = "data/documents.json")
+load_documents(engine=engine, file='data/documents_100k')
 
 app = Flask(__name__)
-
-# Импортируем наш поисковый движок
-# (В реальном проекте это будет отдельный модуль)
 
 @app.route('/')
 def index():
@@ -29,29 +19,33 @@ def search():
     """Обработка поискового запроса"""
     if request.method == 'POST':
         query = request.json.get('query', '').strip()
-        max_distance = request.json.get('max_distance', None)
 
         if not query:
             return jsonify({'error': 'Пустой запрос'}), 400
 
         try:
-            # Выполняем поиск
-            results = engine.search(query, max_distance)
+            # Выполняем поиск (max_distance deprecated, используйте NEAR в запросе)
+            results = engine.search(query)
 
             # Форматируем результаты
             formatted_results = []
             for doc_id, score in results[:10]:  # Топ-10 результатов
-                doc_content = engine.indexer.documents[doc_id]
-                doc_fields = engine.indexer.doc_fields.get(doc_id, {})
-
+                doc = engine.documents.get(int(doc_id))
+                if doc is None:
+                    continue
+                
+                # DataIndex.get() возвращает dict с полями: doc_id, text, title, url
+                doc_text = doc.get('text', '')
+                doc_title = doc.get('title', 'No title')
+                doc_url = doc.get('url', '')
+                
                 formatted_results.append({
                     'id': doc_id,
                     'score': round(score, 3),
-                    'title': doc_fields.get('title', 'Без названия'),
-                    'author': doc_fields.get('author', 'Неизвестный автор'),
-                    'category': doc_fields.get('category', 'Без категории'),
-                    'content': doc_content,
-                    'snippet': doc_content[:200] + '...' if len(doc_content) > 200 else doc_content
+                    'title': doc_title,
+                    'url': doc_url,
+                    'content': doc_text,
+                    'snippet': doc_text[:200] + '...' if len(doc_text) > 200 else doc_text
                 })
 
             return jsonify({
@@ -89,27 +83,45 @@ def add_document():
 @app.route('/api/stats')
 def stats():
     """Статистика индекса"""
-    return jsonify({
-        'total_documents': engine.indexer.total_docs,
-        'total_terms': len(engine.indexer.inverted_index),
-        'index_size': sum(len(docs) for docs in engine.indexer.inverted_index.values())
-    })
+    try:
+        total_documents = 0
+        if getattr(engine, 'documents', None) is not None:
+            try:
+                total_documents = getattr(engine.documents, 'total_documents', len(engine.documents))
+            except Exception:
+                total_documents = 0
+
+        total_terms = engine.rev_indexer.total_terms
+        index_size = engine.rev_indexer.index_size
+
+        return jsonify({
+            'total_documents': total_documents,
+            'total_terms': total_terms,
+            'index_size': index_size,
+        })
+    except Exception as e:
+        return jsonify({
+            'total_documents': 0,
+            'total_terms': 0,
+            'index_size': 0,
+            'error': f'failed_to_compute_stats: {str(e)}'
+        }), 500
 
 @app.route('/doc/<doc_id>')
 def document_detail(doc_id: str):
     """Страница с деталями документа"""
-    # Проверяем наличие документа в индексе
-    doc_content = engine.indexer.documents.get(doc_id)
-    if doc_content is None:
+    doc = engine.documents.get(int(doc_id))
+    if doc is None:
         abort(404)
-
-    doc_fields = engine.indexer.doc_fields.get(doc_id, {})
-
-    # Собираем все поля для отображения
+    
+    # DataIndex.get() возвращает dict с полями: doc_id, text, title, url
     details = {
         'id': doc_id,
-        'content': doc_content,
-        'fields': doc_fields
+        'content': doc.get('text', ''),
+        'fields': {
+            'title': doc.get('title', ''),
+            'url': doc.get('url', ''),
+        }
     }
 
     return render_template('document.html', doc=details)
