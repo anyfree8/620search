@@ -1,4 +1,10 @@
 __pycache__
 .ipynb_checkpoints
-stg
+stg/
+data/
 example.ipynb
+scripts/
+.DS_Store
+.venv/
+.env
+*.log
