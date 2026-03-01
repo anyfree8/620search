@@ -9,3 +9,5 @@ dev/test/
 .venv/
 .env
 *.log
+.gigaide
+.idea
