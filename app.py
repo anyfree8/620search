@@ -24,7 +24,7 @@ def search():
             return jsonify({'error': 'Пустой запрос'}), 400
 
         try:
-            # Выполняем поиск (max_distance deprecated, используйте NEAR в запросе)
+            # Выполняем поиск 
             results = engine.search(query)
 
             # Форматируем результаты

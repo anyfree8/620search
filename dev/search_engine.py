@@ -1,10 +1,13 @@
-from typing import Dict, List, Set, Tuple, Any, Callable
+from dataclasses import dataclass
+from typing import Union, List, Tuple, Dict, Any
 
+import math
 import heapq
 
-from dev.index import ReverseIndex, CoordinateIndex
+from dev.index import ReverseIndex, CoordinateIndex, DataIndex
 from dev.posting_list import BasePostingList, PostingList, AntiPostingList
-from dev.query_parser import *
+from dev.ast import *
+from dev.query_parser import QueryParser
 
 
 REVERSE_INDEX_CONFIG_PATH = {
@@ -17,10 +20,16 @@ POS_INDEX_CONFIG_PATH = {
     'title_file_path': 'data/wikipedia_100k_pos_index_title.pb'
 }
 
+DATA_INDEX_CONFIG_PATH = {
+    'file_path': 'data/documents_100k',
+}
+
+
 class SearchEngine:
     """Search engine with boolean queries"""
     rev_indexer: ReverseIndex
     pos_indexer: CoordinateIndex
+    data_indexer: DataIndex
     parser: QueryParser
     documents: List[Dict[str, Any]]
 
@@ -28,20 +37,81 @@ class SearchEngine:
         self,
         reverse_index_paths=REVERSE_INDEX_CONFIG_PATH,
         pos_index_paths=POS_INDEX_CONFIG_PATH,
+        data_index_paths=DATA_INDEX_CONFIG_PATH,
         parser=None,
     ):
         self.rev_indexer = ReverseIndex(**reverse_index_paths)
         self.pos_indexer = CoordinateIndex(**pos_index_paths)
+        self.data_indexer = DataIndex(**data_index_paths)
         self.parser = parser or QueryParser()
         self.documents = None
 
-    def search(self, query: str, max_distance: int = None) -> List[Tuple[str, float]]:
-        """Search by boolean query"""
-        
+    def _total_documents(self) -> int:
+        return self.data_indexer.total_documents
+
+    def _score_document(self, doc_id: int, positive_terms: List[TermNode]) -> float:
+        score = 0.0
+        for term_node in positive_terms:
+            field = term_node.field or 'text'
+            tf = self._tf(doc_id, term_node.term, field=field)
+            if tf <= 0:
+                continue
+            score += (1.0 + math.log(tf)) * self._idf(term_node.term, field=field)
+        return score
+    
+    def _tf(self, doc_id: int, term: str, field: str = 'text') -> int:
+        positions = self.pos_indexer.get(doc_id, term, field=field)
+        if positions is None:
+            return 0
+        return len(positions)
+    
+    def _df(self, term: str, field: str = 'text') -> int:
+        doc_ids = self.rev_indexer.get(term, field=field)
+        if doc_ids is None:
+            return 0
+        return len(doc_ids)
+    
+    def _idf(self, term: str, field: str = 'text') -> float:
+        df = self._df(term, field=field)
+        N = self._total_documents()
+        return math.log((N + 1) / (df + 1)) + 1.0
+
+    def search(self, query: str) -> List[Tuple[str, float]]:
+        """Search by boolean query with TF-IDF ranking"""
         ast = self.parser.parse(query)
-        results = [(str(doc_id), 0.0) for doc_id in self.execute(ast).doc_ids]
-        
-        return results
+        matched_doc_ids = self.execute(ast).doc_ids
+
+        positive_terms = self.collect_positives(ast)
+
+        results = [
+            (str(doc_id), self._score_document(doc_id, positive_terms))
+            for doc_id in matched_doc_ids
+        ]
+        return results# .sort(key=lambda x: (-x[1], x[0]))
+    
+    def collect_positives(self, node: ASTNode) -> List[TermNode]:
+        """Collect positive terms from AST."""
+
+        if isinstance(node, TermNode):
+            return [node]
+
+        if isinstance(node, NotNode):
+            return []
+
+        if isinstance(node, AndWithPositivesAndNegativesNode):
+            children = node.pos_operands
+        elif isinstance(node, (AndNode, OrNode)):
+            children = node.operands
+        elif isinstance(node, NearNode):
+            children = node.terms
+        else:
+            raise ValueError("Unknown AST")
+
+        return [
+            term
+            for child in children
+            for term in self.collect_positives(child)
+        ]
 
     def execute(self, node: ASTNode) -> Union[ASTNode, BasePostingList]:
         """Execute AST"""
