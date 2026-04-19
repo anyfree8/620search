@@ -546,7 +546,7 @@
                 resultsList.innerHTML = data.results.map(result => `
                     <div class="result-item">
                         <div style="display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;">
-                            <a class="result-title" href="/doc/${encodeURIComponent(result.id)}">${result.title || 'Без названия'}</a>
+                            <a class="result-title" href="/doc/${encodeURIComponent(result.id)}?q=${encodeURIComponent(query)}">${result.title || 'Без названия'}</a>
                             ${result.url ? `<a href="${result.url}" target="_blank" rel="noreferrer" style="font-size: 12px; color: var(--muted); text-decoration: none;">🔗</a>` : ''}
                         </div>
                         <div class="badges">
