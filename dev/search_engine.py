@@ -110,7 +110,7 @@ class SearchEngine:
         return [
             term
             for child in children
-            for term in self.collect_positives(child)
+            for term in self.collect_positive_terms(child)
         ]
 
     def execute(self, node: ASTNode) -> Union[ASTNode, BasePostingList]:
