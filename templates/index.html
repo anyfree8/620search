@@ -15,6 +15,8 @@
             --ring: rgba(37, 99, 235, 0.35);
             --border: #e5e7eb;
             --chip: #eef2ff;
+            --highlight-bg: #fef08a;
+            --highlight-color: #713f12;
         }
 
         [data-theme="dark"] {
@@ -27,6 +29,8 @@
             --ring: rgba(96, 165, 250, 0.35);
             --border: #1f2937;
             --chip: #111827;
+            --highlight-bg: #854d0e;
+            --highlight-color: #fef9c3;
         }
 
         html, body {
@@ -343,6 +347,14 @@
         }
 
         .footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 18px; }
+
+        mark.hl {
+            background: var(--highlight-bg);
+            color: var(--highlight-color);
+            border-radius: 3px;
+            padding: 0 2px;
+            font-style: normal;
+        }
     </style>
 </head>
 <body>
@@ -558,9 +570,67 @@
                     </div>
                 `).join('');
 
+                highlightResults(query);
+
             } catch (error) {
                 resultsHeader.innerHTML = `<div class="error">Ошибка соединения: ${error.message}</div>`;
             }
+        }
+
+        // Подсветка термов в заголовках и сниппетах результатов
+        function highlightResults(query) {
+            // Простой клиентский парсер: извлекаем позитивные термы
+            // (всё что не операторы AND/OR/NOT, не поля field:: и не @N)
+            const tokens = query.match(/((?:[\p{L}\p{N}_]+::)?[\p{L}\p{N}_]+|@\d+)/gu) || [];
+            const stopwords = new Set(['AND', 'OR', 'NOT', 'and', 'or', 'not']);
+            const terms = [];
+            const seen = new Set();
+            let negated = false;
+            for (const tok of tokens) {
+                if (tok === 'NOT') { negated = true; continue; }
+                if (tok === 'AND' || tok === 'OR') { negated = false; continue; }
+                if (/^@\d+$/.test(tok)) continue;
+                // field::term — берём только терм
+                const bare = tok.includes('::') ? tok.split('::')[1] : tok;
+                if (!negated && bare && !stopwords.has(bare) && !seen.has(bare.toLowerCase())) {
+                    seen.add(bare.toLowerCase());
+                    terms.push(bare.toLowerCase());
+                }
+                negated = false;
+            }
+            if (!terms.length) return;
+
+            const sorted = [...terms].sort((a, b) => b.length - a.length);
+            const escaped = sorted.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+            const re = new RegExp(`(${escaped.join('|')})`, 'giu');
+
+            function applyHighlight(el) {
+                const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+                const nodes = [];
+                let node;
+                while ((node = walker.nextNode())) nodes.push(node);
+                for (const tn of nodes) {
+                    const val = tn.nodeValue;
+                    if (!re.test(val)) continue;
+                    re.lastIndex = 0;
+                    const frag = document.createDocumentFragment();
+                    let last = 0, m;
+                    while ((m = re.exec(val)) !== null) {
+                        if (m.index > last)
+                            frag.appendChild(document.createTextNode(val.slice(last, m.index)));
+                        const mark = document.createElement('mark');
+                        mark.className = 'hl';
+                        mark.textContent = m[0];
+                        frag.appendChild(mark);
+                        last = m.index + m[0].length;
+                    }
+                    if (last < val.length)
+                        frag.appendChild(document.createTextNode(val.slice(last)));
+                    tn.parentNode.replaceChild(frag, tn);
+                }
+            }
+
+            document.querySelectorAll('.result-title, .result-snippet').forEach(applyHighlight);
         }
 
         // Загружаем статистику при загрузке страницы

@@ -14,6 +14,8 @@
             --border: #e5e7eb;
             --ring: rgba(37, 99, 235, 0.35);
             --chip: #eef2ff;
+            --highlight-bg: #fef08a;
+            --highlight-color: #713f12;
         }
 
         [data-theme="dark"] {
@@ -25,6 +27,8 @@
             --border: #1f2937;
             --ring: rgba(96, 165, 250, 0.35);
             --chip: #111827;
+            --highlight-bg: #854d0e;
+            --highlight-color: #fef9c3;
         }
 
         html, body { height: 100%; }
@@ -74,6 +78,14 @@
         a { color: #1d4ed8; text-decoration: none; }
         [data-theme="dark"] a { color: #93c5fd; }
         a:hover { text-decoration: underline; }
+
+        mark.hl {
+            background: var(--highlight-bg);
+            color: var(--highlight-color);
+            border-radius: 3px;
+            padding: 0 2px;
+            font-style: normal;
+        }
     </style>
   </head>
   <body>
@@ -104,7 +116,7 @@
             </div>
 
             <div class="section-title">Содержимое</div>
-            <div class="content">{{ doc.content }}</div>
+            <div class="content" data-highlight="{{ highlight_terms }}">{{ doc.content }}</div>
         </div>
     </div>
   <script>
@@ -124,7 +136,51 @@
         });
     }
   </script>
+
+  <script>
+  (function highlightTerms() {
+      const terms = JSON.parse(document.querySelector('.content').dataset.highlight || '[]');
+      if (!terms.length) return;
+
+      // Сортируем по убыванию длины — длинные термы приоритетнее
+      const sorted = [...terms].sort((a, b) => b.length - a.length);
+
+      // Строим одно RegExp со всеми термами
+      const escaped = sorted.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+      const re = new RegExp(`(${escaped.join('|')})`, 'gi');
+
+      const contentEl = document.querySelector('.content');
+      if (!contentEl) return;
+
+      // Обходим только текстовые узлы — безопасно, без innerHTML
+      const walker = document.createTreeWalker(contentEl, NodeFilter.SHOW_TEXT);
+      const textNodes = [];
+      let node;
+      while ((node = walker.nextNode())) textNodes.push(node);
+
+      for (const tn of textNodes) {
+          const val = tn.nodeValue;
+          if (!re.test(val)) continue;
+          re.lastIndex = 0;
+
+          const frag = document.createDocumentFragment();
+          let last = 0, m;
+          while ((m = re.exec(val)) !== null) {
+              if (m.index > last)
+                  frag.appendChild(document.createTextNode(val.slice(last, m.index)));
+              const mark = document.createElement('mark');
+              mark.className = 'hl';
+              mark.textContent = m[0];
+              frag.appendChild(mark);
+              last = m.index + m[0].length;
+          }
+          if (last < val.length)
+              frag.appendChild(document.createTextNode(val.slice(last)));
+
+          tn.parentNode.replaceChild(frag, tn);
+      }
+  })();
+  </script>
+
   </body>
  </html>
-
-

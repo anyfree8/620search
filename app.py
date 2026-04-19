@@ -1,7 +1,11 @@
+import json
 from flask import Flask, render_template, request, jsonify, abort
 
-from dev.search_engine import SearchEngine
 from data.data_loader import load_documents
+from dev.search_engine import SearchEngine
+from dev.query_parser import QueryParser
+
+from help.helper import _positive_terms
 
 
 engine = SearchEngine()
@@ -124,7 +128,23 @@ def document_detail(doc_id: str):
         }
     }
 
-    return render_template('document.html', doc=details)
+    # Извлекаем позитивные термы из параметра q
+    highlight_terms = []
+    q = request.args.get('q', '').strip()
+    if q:
+        try:
+            ast = QueryParser().parse(q)
+            seen = set()
+            for term in _positive_terms(ast):
+                t = term.lower()
+                if t not in seen:
+                    seen.add(t)
+                    highlight_terms.append(t)
+        except Exception:
+            pass
+
+    return render_template('document.html', doc=details,
+                           highlight_terms=json.dumps(highlight_terms, ensure_ascii=False))
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8080)
