@@ -81,7 +81,7 @@ class SearchEngine:
         ast = self.parser.parse(query)
         matched_doc_ids = self.execute(ast).doc_ids
 
-        positive_terms = self.collect_positives(ast)
+        positive_terms = self.collect_positive_terms(ast)
 
         results = [
             (str(doc_id), self._score_document(doc_id, positive_terms))
@@ -89,7 +89,7 @@ class SearchEngine:
         ]
         return results# .sort(key=lambda x: (-x[1], x[0]))
     
-    def collect_positives(self, node: ASTNode) -> List[TermNode]:
+    def collect_positive_terms(self, node: ASTNode) -> List[TermNode]:
         """Collect positive terms from AST."""
 
         if isinstance(node, TermNode):
