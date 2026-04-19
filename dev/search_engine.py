@@ -87,7 +87,8 @@ class SearchEngine:
             (str(doc_id), self._score_document(doc_id, positive_terms))
             for doc_id in matched_doc_ids
         ]
-        return results# .sort(key=lambda x: (-x[1], x[0]))
+        results.sort(key=lambda x: (-x[1], x[0]))
+        return results
     
     def collect_positive_terms(self, node: ASTNode) -> List[TermNode]:
         """Collect positive terms from AST."""
