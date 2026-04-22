@@ -28,24 +28,31 @@ def search():
             return jsonify({'error': 'Пустой запрос'}), 400
 
         try:
-            # Выполняем поиск 
-            results = engine.search(query)
+            # Выполняем поиск. Основное ранжирование — BM25 + proximity;
+            # дополнительно возвращаем TF-IDF для отображения в UI.
+            results = engine.rescored_search(query)
 
             # Форматируем результаты
             formatted_results = []
-            for doc_id, score in results[:10]:  # Топ-10 результатов
+            for doc_id, scores in results[:10]:  # Топ-10 результатов
                 doc = engine.documents.get(int(doc_id))
                 if doc is None:
                     continue
-                
+
                 # DataIndex.get() возвращает dict с полями: doc_id, text, title, url
                 doc_text = doc.get('text', '')
                 doc_title = doc.get('title', 'No title')
                 doc_url = doc.get('url', '')
-                
+
+                tf_idf = round(scores['base_score'], 3)
+                bm25_prox = round(scores['score'], 3)
+
                 formatted_results.append({
                     'id': doc_id,
-                    'score': round(score, 3),
+                    # score оставлен для обратной совместимости и равен
+                    # первичному ранжирующему скору (BM25 + proximity).
+                    'score': bm25_prox,
+                    'base_score': tf_idf,
                     'title': doc_title,
                     'url': doc_url,
                     'content': doc_text,

@@ -111,7 +111,7 @@ class QueryParser:
             return result
         phrase = []
 
-        field = 'text'
+        field = None
         if token and self.next_token() is not None and self.next_token() not in self.operands and self.next_token() != ')' and token.find('::') != -1:
             tok = self.consume(token)
             field = tok[:tok.find('::')]
@@ -135,7 +135,15 @@ class QueryParser:
             phrase.append(tok)
 
         if len(phrase) > 1:
-            terms = [TermNode(term, field) for term in phrase]
-            return NearNode(terms, near_k)
+            if field is not None:
+                terms = [TermNode(term, field) for term in phrase]
+                return NearNode(terms, near_k)
+            else:
+                title_terms = [TermNode(term, 'title') for term in phrase]
+                text_terms = [TermNode(term, 'text') for term in phrase]
+                return OrNode([NearNode(title_terms, near_k), NearNode(text_terms, near_k)])
         else:
-            return TermNode(phrase[0], field)
+            if field is not None:
+                return TermNode(phrase[0], field)
+            else:
+                return OrNode([TermNode(phrase[0], 'title'), TermNode(phrase[0], 'text')])

@@ -563,7 +563,8 @@
                         </div>
                         <div class="badges">
                             <span class="badge">id: ${result.id}</span>
-                            <span class="badge">score: ${result.score}</span>
+                            <span class="badge" title="base score">base score: ${result.base_score}</span>
+                            <span class="badge" title="score">score: ${result.score ?? result.base_score}</span>
                             ${result.url ? `<span class="badge"><a href="${result.url}" target="_blank" rel="noreferrer" style="color: inherit; text-decoration: none;">🔗 url</a></span>` : ''}
                         </div>
                         <div class="result-snippet">${result.snippet}</div>

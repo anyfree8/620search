@@ -30,7 +30,7 @@ SCORE_RESULTS_CONFIG_PATH = {
 
 
 class SearchEngine:
-    """Search engine with boolean queries and BM25 ranking (field-weighted, with proximity)."""
+    """Search engine with boolean queries and BM25 ranking (field-weighted)."""
     rev_indexer: ReverseIndex
     pos_indexer: CoordinateIndex
     data_indexer: DataIndex
@@ -53,8 +53,6 @@ class SearchEngine:
         self.parser = parser or QueryParser()
         self.documents = None
 
-        self._doc_len_cache: Dict[str, Dict[int, int]] = {'text': {}, 'title': {}}
-        self._avgdl_cache: Dict[str, float] = {}
 
     # ---- basic stats ----
 
@@ -64,6 +62,12 @@ class SearchEngine:
     def _tf(self, doc_id: int, term: str, field: str = 'text') -> int:
         positions = self.pos_indexer.get(doc_id, term, field=field)
         if positions is None:
+            return 0
+        return len(positions)
+    
+    def _tf_base(self, doc_id: int, term: str, field: str = 'text') -> int:
+        positions = self.pos_indexer.get(doc_id, term, field=field)
+        if positions is None or field != 'text':
             return 0
         return len(positions)
 
@@ -93,34 +97,15 @@ class SearchEngine:
         return self.pos_indexer.text_index
 
     def _doc_len(self, doc_id: int, field: str = 'text') -> int:
-        cache = self._doc_len_cache.setdefault(field, {})
-        if doc_id in cache:
-            return cache[doc_id]
         pi = self._pos_index_for_field(field)
         term_positions = pi.docId2termPositionsLists.get(doc_id, None)
-        if term_positions is None:
-            cache[doc_id] = 0
-            return 0
         total = 0
         for pl in term_positions.term2positionsList.values():
             total += 1 + len(pl.position_deltas)
-        cache[doc_id] = total
         return total
 
     def _avgdl(self, field: str = 'text') -> float:
-        if field in self._avgdl_cache:
-            return self._avgdl_cache[field]
-        pi = self._pos_index_for_field(field)
-        total_len = 0
-        n_docs = 0
-        for term_positions in pi.docId2termPositionsLists.values():
-            n_docs += 1
-            for pl in term_positions.term2positionsList.values():
-                total_len += 1 + len(pl.position_deltas)
-        avgdl = (total_len / n_docs) if n_docs else 0.0
-        self._avgdl_cache[field] = avgdl
-        return avgdl
-    
+        return 500 if field == 'text' else 2
 
     # ---- TF-IDF ----
 
@@ -128,7 +113,7 @@ class SearchEngine:
         score = 0.0
         for term_node in positive_terms:
             field = term_node.field or 'text'
-            tf = self._tf(doc_id, term_node.term, field=field)
+            tf = self._tf_base(doc_id, term_node.term, field=field)
             if tf <= 0:
                 continue
             score += (1.0 + math.log(tf)) * self._idf_base(term_node.term, field=field)
@@ -162,93 +147,34 @@ class SearchEngine:
         score = 0.0
         for term_node in positive_terms:
             term = term_node.term
-            if term_node.field and term_node.field in weights:
-                w = weights.get(term_node.field, 1.0)
-                score += w * self._bm25_term_field_score(doc_id, term, term_node.field)
-            else:
-                for field_name, w in weights.items():
-                    score += w * self._bm25_term_field_score(doc_id, term, field_name)
+            w = weights.get(term_node.field, 1.0)
+            score += w * self._bm25_term_field_score(doc_id, term, term_node.field)
         return score
-
-    # ---- proximity ----
-
-    def _proximity_bonus(self, doc_id: int, positive_terms: List[TermNode]) -> float:
-        """Bonus for query terms co-occurring within a small window.
-
-        Counts pairs of distinct query terms whose nearest positions in the
-        configured field fall within ``window`` tokens. Each close pair
-        contributes ``weight * min(idf_a, idf_b)``. Returns 0 if disabled or
-        fewer than 2 positive terms.
-        """
-        prox = self.config.proximity
-        if not prox.enabled:
-            return 0.0
-        if len(positive_terms) < 2:
-            return 0.0
-
-        field = prox.field
-        window = prox.window
-
-        unique_terms: List[str] = []
-        seen = set()
-        for t in positive_terms:
-            if t.term not in seen:
-                seen.add(t.term)
-                unique_terms.append(t.term)
-        if len(unique_terms) < 2:
-            return 0.0
-
-        positions_by_term: Dict[str, List[int]] = {}
-        for term in unique_terms:
-            pos = self.pos_indexer.get(doc_id, term, field=field)
-            if pos:
-                positions_by_term[term] = pos
-        if len(positions_by_term) < 2:
-            return 0.0
-
-        bonus = 0.0
-        terms_with_pos = list(positions_by_term.keys())
-        for i in range(len(terms_with_pos)):
-            for j in range(i + 1, len(terms_with_pos)):
-                a, b = terms_with_pos[i], terms_with_pos[j]
-                if self._min_distance(positions_by_term[a], positions_by_term[b]) < window:
-                    idf_a = self._idf(a, field=field)
-                    idf_b = self._idf(b, field=field)
-                    bonus += prox.weight * min(idf_a, idf_b)
-        return bonus
-
-    @staticmethod
-    def _min_distance(a: List[int], b: List[int]) -> int:
-        """Minimum |pa - pb| over sorted position lists a, b, using two pointers."""
-        if not a or not b:
-            return 10 ** 9
-        i = j = 0
-        best = 10 ** 9
-        while i < len(a) and j < len(b):
-            d = a[i] - b[j]
-            if d < 0:
-                d = -d
-            if d < best:
-                best = d
-                if best == 0:
-                    return 0
-            if a[i] < b[j]:
-                i += 1
-            else:
-                j += 1
-        return best
 
     # ---- public API ----
 
     def _score_document(self, doc_id: int, positive_terms: List[TermNode]) -> float:
+        # Primary score used for ranking.
         # return self._bm25_score(doc_id, positive_terms) + self._proximity_bonus(doc_id, positive_terms)
         return self._tf_idf_score(doc_id, positive_terms)
 
+    def _score_document_all(self, doc_id: int, positive_terms: List[TermNode]) -> Dict[str, float]:
+        bm25 = self._bm25_score(doc_id, positive_terms)
+        # prox = self._proximity_bonus(doc_id, positive_terms)
+        tfidf = self._tf_idf_score(doc_id, positive_terms)
+        return {
+            'base_score': tfidf,
+            # 'score': tfidf,
+            'score': bm25, # + 1000 * prox,
+        }
+
     def search(self, query: str) -> List[Tuple[str, float]]:
-        """Search by boolean query with BM25 + proximity ranking."""
+        """Search by boolean query with BM25 + proximity ranking.
+
+        Returns list of (doc_id, score) where ``score`` is the primary ranking score.
+        """
         ast = self.parser.parse(query)
         matched_doc_ids = self.execute(ast).doc_ids
-
         positive_terms = self.collect_positive_terms(ast)
 
         results = [
@@ -256,6 +182,43 @@ class SearchEngine:
             for doc_id in matched_doc_ids
         ]
         results.sort(key=lambda x: (-x[1], x[0]))
+        return results
+
+    def rerank(self, query: str, candidates: List[Tuple[str, float]]) -> List[Tuple[str, float]]:
+        ast = self.parser.parse(query)
+        # matched_doc_ids = self.execute(ast).doc_ids
+        positive_terms = self.collect_positive_terms(ast)
+
+        top_results = [
+            (doc_id, self._score_document_all(int(doc_id), positive_terms)['score'])
+            for doc_id, _ in candidates
+        ]
+        top_results.sort(key=lambda x: (-x[1], x[0]))
+        return top_results
+
+    def rescored_search(self, query: str) -> List[Tuple[str, Dict[str, float]]]:
+        """
+        Search and return per-document dict of all available scores..
+        """
+        ast = self.parser.parse(query)
+        # matched_doc_ids = self.execute(ast).doc_ids
+        positive_terms = self.collect_positive_terms(ast)
+
+        results = self.search(query)
+
+        top_results = [
+            (doc_id, self._score_document_all(int(doc_id), positive_terms))
+            for doc_id, _ in results[:10]
+        ]
+        top_results.sort(key=lambda x: (-x[1]['score'], x[0]))
+
+        bottom_results = [
+            (doc_id, {'base_score': base_score, 'score': base_score})
+            for doc_id, base_score in results[10:]
+        ]
+
+        results = top_results + bottom_results
+        # results.sort(key=lambda x: (-x[1]['score'], x[0]))
         return results
 
     def collect_positive_terms(self, node: ASTNode) -> List[TermNode]:
