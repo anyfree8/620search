@@ -263,7 +263,7 @@ $$
 кешированием), `idf(t, f)` — сглаженная RSJ-форма с клиппингом в 0:
 
 $$
-\mathrm{idf}(t, f) = \max\!\left(\log\!\left(\frac{N - df + 0.5}{df + 0.5} + 1\right),\ 0\right).
+\mathrm{idf}(t, f) = \max \left(\log \left(\frac{N - df + 0.5}{df + 0.5} + 1\right),\ 0\right).
 $$
 
 `_bm25_score` агрегирует `BM25` по полям с весами из `ScoreConfig`
