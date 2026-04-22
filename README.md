@@ -276,13 +276,13 @@ $$
 позитивных терма. Для заданного поля (`proximity.field = text`) берётся
 минимальное расстояние между позициями каждой пары термов (`_min_distance`,
 двухуказательный проход по отсортированным позициям). Если расстояние строго
-меньше окна `proximity.window`, пара вносит в скоринг величину
+меньше окна `proximity.window`, пара вносит в скоринг величину~~
 
 $$
 \Delta_{\mathrm{prox}}(a, b) = w_{\mathrm{prox}} \cdot \min\bigl(\mathrm{idf}(a),\ \mathrm{idf}(b)\bigr),
 $$
 
-где `w_prox = proximity.weight`. Параметры по умолчанию заданы в
+~~где `w_prox = proximity.weight`. Параметры по умолчанию заданы в
 `configs/score.yaml` (`window = 8`, `weight = 0.25`).~~
 
 ## Подсветка совпадений и сниппеты
