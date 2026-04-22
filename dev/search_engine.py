@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import Union, List, Tuple, Dict, Any
 
 import math
@@ -8,6 +7,7 @@ from dev.index import ReverseIndex, CoordinateIndex, DataIndex
 from dev.posting_list import BasePostingList, PostingList, AntiPostingList
 from dev.ast import *
 from dev.query_parser import QueryParser
+from dev.score_config import ScoreConfig
 
 
 REVERSE_INDEX_CONFIG_PATH = {
@@ -24,60 +24,228 @@ DATA_INDEX_CONFIG_PATH = {
     'file_path': 'data/documents_100k',
 }
 
+SCORE_RESULTS_CONFIG_PATH = {
+    'file_path': 'configs/score.yaml',
+}
+
 
 class SearchEngine:
-    """Search engine with boolean queries"""
+    """Search engine with boolean queries and BM25 ranking (field-weighted, with proximity)."""
     rev_indexer: ReverseIndex
     pos_indexer: CoordinateIndex
     data_indexer: DataIndex
     parser: QueryParser
     documents: List[Dict[str, Any]]
+    config: ScoreConfig
 
     def __init__(
         self,
         reverse_index_paths=REVERSE_INDEX_CONFIG_PATH,
         pos_index_paths=POS_INDEX_CONFIG_PATH,
         data_index_paths=DATA_INDEX_CONFIG_PATH,
+        score_config_paths=SCORE_RESULTS_CONFIG_PATH,
         parser=None,
     ):
         self.rev_indexer = ReverseIndex(**reverse_index_paths)
         self.pos_indexer = CoordinateIndex(**pos_index_paths)
         self.data_indexer = DataIndex(**data_index_paths)
+        self.config = ScoreConfig.load(**score_config_paths)
         self.parser = parser or QueryParser()
         self.documents = None
+
+        self._doc_len_cache: Dict[str, Dict[int, int]] = {'text': {}, 'title': {}}
+        self._avgdl_cache: Dict[str, float] = {}
+
+    # ---- basic stats ----
 
     def _total_documents(self) -> int:
         return self.data_indexer.total_documents
 
-    def _score_document(self, doc_id: int, positive_terms: List[TermNode]) -> float:
-        score = 0.0
-        for term_node in positive_terms:
-            field = term_node.field or 'text'
-            tf = self._tf(doc_id, term_node.term, field=field)
-            if tf <= 0:
-                continue
-            score += (1.0 + math.log(tf)) * self._idf(term_node.term, field=field)
-        return score
-    
     def _tf(self, doc_id: int, term: str, field: str = 'text') -> int:
         positions = self.pos_indexer.get(doc_id, term, field=field)
         if positions is None:
             return 0
         return len(positions)
-    
+
     def _df(self, term: str, field: str = 'text') -> int:
         doc_ids = self.rev_indexer.get(term, field=field)
         if doc_ids is None:
             return 0
         return len(doc_ids)
     
-    def _idf(self, term: str, field: str = 'text') -> float:
+    def _idf_base(self, term: str, field: str = 'text') -> float:
         df = self._df(term, field=field)
         N = self._total_documents()
         return math.log((N + 1) / (df + 1)) + 1.0
 
+    def _idf(self, term: str, field: str = 'text') -> float:
+        """Robertson–Spärck Jones IDF with smoothing (always >= 0)."""
+        df = self._df(term, field=field)
+        N = self._total_documents()
+        val = math.log((N - df + 0.5) / (df + 0.5) + 1.0)
+        return max(val, 0.0)
+
+    # ---- document length / avgdl (field-specific) ----
+
+    def _pos_index_for_field(self, field: str):
+        if field == 'title':
+            return self.pos_indexer.title_index
+        return self.pos_indexer.text_index
+
+    def _doc_len(self, doc_id: int, field: str = 'text') -> int:
+        cache = self._doc_len_cache.setdefault(field, {})
+        if doc_id in cache:
+            return cache[doc_id]
+        pi = self._pos_index_for_field(field)
+        term_positions = pi.docId2termPositionsLists.get(doc_id, None)
+        if term_positions is None:
+            cache[doc_id] = 0
+            return 0
+        total = 0
+        for pl in term_positions.term2positionsList.values():
+            total += 1 + len(pl.position_deltas)
+        cache[doc_id] = total
+        return total
+
+    def _avgdl(self, field: str = 'text') -> float:
+        if field in self._avgdl_cache:
+            return self._avgdl_cache[field]
+        pi = self._pos_index_for_field(field)
+        total_len = 0
+        n_docs = 0
+        for term_positions in pi.docId2termPositionsLists.values():
+            n_docs += 1
+            for pl in term_positions.term2positionsList.values():
+                total_len += 1 + len(pl.position_deltas)
+        avgdl = (total_len / n_docs) if n_docs else 0.0
+        self._avgdl_cache[field] = avgdl
+        return avgdl
+    
+
+    # ---- TF-IDF ----
+
+    def _tf_idf_score(self, doc_id: int, positive_terms: List[TermNode]) -> float:
+        score = 0.0
+        for term_node in positive_terms:
+            field = term_node.field or 'text'
+            tf = self._tf(doc_id, term_node.term, field=field)
+            if tf <= 0:
+                continue
+            score += (1.0 + math.log(tf)) * self._idf_base(term_node.term, field=field)
+        return score
+
+
+    # ---- BM25 ----
+    def _bm25_term_field_score(self, doc_id: int, term: str, field: str) -> float:
+        tf = self._tf(doc_id, term, field=field)
+        if tf <= 0:
+            return 0.0
+        k1 = self.config.bm25.k1
+        b = self.config.bm25.b
+        dl = self._doc_len(doc_id, field=field)
+        avgdl = self._avgdl(field=field) or 1.0
+        norm = 1.0 - b + b * (dl / avgdl)
+        denom = tf + k1 * norm
+        if denom <= 0:
+            return 0.0
+        idf = self._idf(term, field=field)
+        return idf * ((tf * (k1 + 1.0)) / denom)
+
+    def _bm25_score(self, doc_id: int, positive_terms: List[TermNode]) -> float:
+        """Field-weighted BM25: sum over terms, for each term sum over fields with weights.
+
+        If a query term was written for a specific field (e.g. ``title::foo``),
+        only that field contributes; otherwise both fields contribute, each
+        scaled by its configured weight.
+        """
+        weights = self.config.bm25.field_weights
+        score = 0.0
+        for term_node in positive_terms:
+            term = term_node.term
+            if term_node.field and term_node.field in weights:
+                w = weights.get(term_node.field, 1.0)
+                score += w * self._bm25_term_field_score(doc_id, term, term_node.field)
+            else:
+                for field_name, w in weights.items():
+                    score += w * self._bm25_term_field_score(doc_id, term, field_name)
+        return score
+
+    # ---- proximity ----
+
+    def _proximity_bonus(self, doc_id: int, positive_terms: List[TermNode]) -> float:
+        """Bonus for query terms co-occurring within a small window.
+
+        Counts pairs of distinct query terms whose nearest positions in the
+        configured field fall within ``window`` tokens. Each close pair
+        contributes ``weight * min(idf_a, idf_b)``. Returns 0 if disabled or
+        fewer than 2 positive terms.
+        """
+        prox = self.config.proximity
+        if not prox.enabled:
+            return 0.0
+        if len(positive_terms) < 2:
+            return 0.0
+
+        field = prox.field
+        window = prox.window
+
+        unique_terms: List[str] = []
+        seen = set()
+        for t in positive_terms:
+            if t.term not in seen:
+                seen.add(t.term)
+                unique_terms.append(t.term)
+        if len(unique_terms) < 2:
+            return 0.0
+
+        positions_by_term: Dict[str, List[int]] = {}
+        for term in unique_terms:
+            pos = self.pos_indexer.get(doc_id, term, field=field)
+            if pos:
+                positions_by_term[term] = pos
+        if len(positions_by_term) < 2:
+            return 0.0
+
+        bonus = 0.0
+        terms_with_pos = list(positions_by_term.keys())
+        for i in range(len(terms_with_pos)):
+            for j in range(i + 1, len(terms_with_pos)):
+                a, b = terms_with_pos[i], terms_with_pos[j]
+                if self._min_distance(positions_by_term[a], positions_by_term[b]) < window:
+                    idf_a = self._idf(a, field=field)
+                    idf_b = self._idf(b, field=field)
+                    bonus += prox.weight * min(idf_a, idf_b)
+        return bonus
+
+    @staticmethod
+    def _min_distance(a: List[int], b: List[int]) -> int:
+        """Minimum |pa - pb| over sorted position lists a, b, using two pointers."""
+        if not a or not b:
+            return 10 ** 9
+        i = j = 0
+        best = 10 ** 9
+        while i < len(a) and j < len(b):
+            d = a[i] - b[j]
+            if d < 0:
+                d = -d
+            if d < best:
+                best = d
+                if best == 0:
+                    return 0
+            if a[i] < b[j]:
+                i += 1
+            else:
+                j += 1
+        return best
+
+    # ---- public API ----
+
+    def _score_document(self, doc_id: int, positive_terms: List[TermNode]) -> float:
+        # return self._bm25_score(doc_id, positive_terms) + self._proximity_bonus(doc_id, positive_terms)
+        return self._tf_idf_score(doc_id, positive_terms)
+
     def search(self, query: str) -> List[Tuple[str, float]]:
-        """Search by boolean query with TF-IDF ranking"""
+        """Search by boolean query with BM25 + proximity ranking."""
         ast = self.parser.parse(query)
         matched_doc_ids = self.execute(ast).doc_ids
 
@@ -89,7 +257,7 @@ class SearchEngine:
         ]
         results.sort(key=lambda x: (-x[1], x[0]))
         return results
-    
+
     def collect_positive_terms(self, node: ASTNode) -> List[TermNode]:
         """Collect positive terms from AST."""
 
@@ -116,62 +284,62 @@ class SearchEngine:
 
     def execute(self, node: ASTNode) -> Union[ASTNode, BasePostingList]:
         """Execute AST"""
-        
+
         if isinstance(node, TermNode):
             doc_ids = self.rev_indexer.get(node.term, field=node.field)
             return PostingList(doc_ids=doc_ids, term=node.term)
-    
+
         if isinstance(node, NotNode):
             if isinstance(node.operand, NotNode):
                 return self.execute(node.operand.operand)
             raise ValueError("Not is not implemented.")
-    
+
         if isinstance(node, OrNode):
             return self.execute_or([self.execute(op) for op in node.operands])
-    
+
         if isinstance(node, AndNode):
             return self.execute_and([self.execute(op) for op in node.operands])
-    
+
         if isinstance(node, AndWithPositivesAndNegativesNode):
             pos = self.execute_and([self.execute(op) for op in node.pos_operands])
             neg = self.execute_and([self.execute(op.operand) for op in node.neg_operands])
             return self.execute_and_not(pos, neg)
-    
+
         if isinstance(node, NearNode):
             if self.pos_indexer is None:
                 raise ValueError("Near is not supplied yet.")
             return self.execute_near([self.execute(term) for term in node.terms], k=node.k, field=node.terms[0].field)
 
         raise ValueError("Unknown AST")
-    
+
     @staticmethod
     def execute_or(pls: List[PostingList]) -> PostingList:
         """Execute OR operation through merging with skipping duplicates"""
 
         for pl in pls:
             pl.reset()
-        
+
         doc_ids_q = []
         for j in range(len(pls)):
             doc_id = pls[j].next()
             if doc_id is not None:
                 doc_ids_q.append((doc_id, j))
-        
+
         heapq.heapify(doc_ids_q)
         union_doc_ids = []
         prev_doc_id = None
-        
+
         while doc_ids_q:
-            
+
             doc_id, j = heapq.heappop(doc_ids_q)
             if prev_doc_id is None or (doc_id != prev_doc_id):
                 union_doc_ids.append(doc_id)
                 prev_doc_id = doc_id
-                
+
             doc_id = pls[j].next()
             if doc_id:
                 heapq.heappush(doc_ids_q, (doc_id, j))
-        
+
         return PostingList(union_doc_ids)
 
     @staticmethod
@@ -185,7 +353,7 @@ class SearchEngine:
 
         intersect_doc_ids = []
         doc_ids_q = [None] * len(pls)
-        
+
         for j in range(len(pls)):
             doc_id = pls[j].peak()
             if doc_id is not None:
@@ -205,16 +373,16 @@ class SearchEngine:
                         pls[j].advance(max_doc_id) if doc_ids_q[j] < max_doc_id else doc_ids_q[j]
                         for j in range(len(pls))
                     ]
-        
+
         return PostingList(intersect_doc_ids)
 
     @staticmethod
     def execute_and_not(pl: PostingList, not_pl: AntiPostingList) -> PostingList:
         """Execute X AND (NOT Y) operation"""
-        
+
         if not_pl.cost == 0 or (not not_pl.doc_ids):
             return pl
-        
+
         subtract_doc_ids = []
 
         pl.reset()
@@ -242,7 +410,7 @@ class SearchEngine:
         """
         NEAR: checks if all terms appear within a k-width window in doc_id.
         """
-        k = k or len(terms) # TODO: ?
+        k = k or len(terms)
 
         pls = [
             PostingList(self.pos_indexer.get(doc_id, term, field=field))
@@ -259,7 +427,7 @@ class SearchEngine:
             idx = pos_ids_q.index(min_pos_id)
             pls[idx].next()
             pos_ids_q[idx] = pls[idx].peak()
-        
+
         return False
 
     def execute_near(self, pls: List[PostingList], k=None, field='text') -> PostingList:
@@ -270,5 +438,5 @@ class SearchEngine:
             raise ValueError('Non-trivial NEAR operation')
 
         pl = self.execute_and(pls)
-        
+
         return PostingList([doc_id for doc_id in pl.doc_ids if self.near_in(doc_id, terms, k=k, field=field)])

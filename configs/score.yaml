@@ -1,0 +1,12 @@
+bm25:
+  k1: 1.2
+  b: 0.75
+  field_weights:
+    title: 2.0
+    text: 1.0
+
+proximity:
+  enabled: true
+  window: 8
+  weight: 0.25
+  field: text

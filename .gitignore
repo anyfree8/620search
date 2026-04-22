@@ -2,6 +2,8 @@ __pycache__
 .ipynb_checkpoints
 stg/
 data/
+notebooks/
+baskets/
 example.ipynb
 scripts/
 dev/test/
